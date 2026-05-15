@@ -11,21 +11,8 @@ function GroupsView({ preds }) {
     return out;
   }, [preds]);
 
-  const totalMatchesPlayed = Object.values(standings).reduce((acc, s) => acc + s.rows.reduce((a, r) => a + r.P, 0) / 2, 0);
-
   return (
     <div className="groups-view">
-      <div className="gv-meta">
-        <div className="gv-summary">
-          <span className="gv-num">{totalMatchesPlayed}</span>
-          <span className="gv-num-lbl">/ 72 group matches predicted</span>
-        </div>
-        <div className="gv-legend">
-          <span className="row"><span className="sw qualify" /> Advances to R32 (1st & 2nd)</span>
-          <span className="row"><span className="sw third" /> Possible R32 via best 3rd</span>
-        </div>
-      </div>
-
       <div className="gv-grid">
         {GROUP_LETTERS.map(g => (
           <GroupTable key={g} letter={g} standings={standings[g]} />

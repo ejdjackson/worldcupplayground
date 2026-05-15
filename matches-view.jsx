@@ -1,7 +1,7 @@
 // Matches view — score inputs for group + knockout matches
 const { useMemo: useMemoM, useState: useStateM } = React;
 
-function MatchesView({ preds, setPred, clearPreds, fillRandom, resolutions }) {
+function MatchesView({ preds, setPred, clearPreds, resolutions }) {
   const { GROUP_MATCHES } = window.TEAMS_DATA;
   const data = window.BRACKET;
   const [filter, setFilter] = useStateM('all');
@@ -74,12 +74,9 @@ function MatchesView({ preds, setPred, clearPreds, fillRandom, resolutions }) {
         <div className="mv-filter">
           {[
             { id: 'all', label: 'All' },
-            { id: 'group', label: 'Groups' },
-            { id: 'ko', label: 'Knockout' },
             { id: 'md1', label: 'MD1' },
             { id: 'md2', label: 'MD2' },
             { id: 'md3', label: 'MD3' },
-            { id: 'predicted', label: 'Done' },
             { id: 'empty', label: 'Empty' },
           ].map(f => (
             <button
@@ -91,9 +88,6 @@ function MatchesView({ preds, setPred, clearPreds, fillRandom, resolutions }) {
         </div>
 
         <div className="mv-actions">
-          <button className="mv-action" onClick={() => { if (confirm('Fill ALL matches (group + knockout) with random scores?')) fillRandom(); }}>
-            Random fill
-          </button>
           <button className="mv-action danger" onClick={() => { if (confirm('Clear all predictions?')) clearPreds(); }}>
             Clear all
           </button>

@@ -66,7 +66,7 @@ function eloForPlayer(teamName, playerName) {
 }
 
 function TeamsView() {
-  const { GROUPS, GROUP_LETTERS, FIFA_RANKINGS, FIFA_POINTS = {}, FIFA_RANKING_DATE } = window.TEAMS_DATA;
+  const { GROUPS, GROUP_LETTERS, FIFA_RANKINGS, FIFA_POINTS = {} } = window.TEAMS_DATA;
   const [hoveredTeam, setHoveredTeam] = useStateT(null);
   const [squadState, setSquadState] = useStateT({ status: 'idle', squads: {}, error: null });
   const hasRequestedSquads = useRefT(false);
@@ -85,9 +85,6 @@ function TeamsView() {
       return a.name.localeCompare(b.name);
     });
   }, []);
-
-  const topTen = teams.filter(t => t.rank <= 10).length;
-  const topThirty = teams.filter(t => t.rank <= 30).length;
 
   const cancelClose = () => {
     if (closeTimer.current) {
@@ -131,25 +128,16 @@ function TeamsView() {
 
   return (
     <div className="teams-view">
-      <div className="tv-meta">
-        <div className="tv-summary">
-          <span className="tv-num">{teams.length}</span>
-          <span className="tv-num-lbl">teams ranked by FIFA world ranking</span>
-        </div>
-        <div className="tv-stats">
-          <span><b>{topTen}</b> top 10</span>
-          <span><b>{topThirty}</b> top 30</span>
-          <span>Updated <b>{FIFA_RANKING_DATE}</b></span>
-        </div>
-      </div>
-
       <div className="tv-table-wrap">
         <table className="tv-table">
           <thead>
             <tr>
-              <th className="rank">World rank</th>
+              <th className="rank">Rank</th>
               <th className="team">Team</th>
-              <th className="points">FIFA points</th>
+              <th className="points">
+                <span className="points-full">FIFA Points</span>
+                <span className="points-short">Points</span>
+              </th>
               <th className="group">Group</th>
             </tr>
           </thead>
@@ -180,8 +168,8 @@ function TeamsView() {
                 <td className="team">
                   <span className="team-name">{team.name}</span>
                 </td>
-                <td className="points">{team.points != null ? team.points.toFixed(2) : '-'}</td>
-                <td className="group">Group {team.group}</td>
+                <td className="points">{team.points != null ? Math.round(team.points) : '-'}</td>
+                <td className="group">{team.group}</td>
               </tr>
             ))}
           </tbody>

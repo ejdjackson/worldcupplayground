@@ -3,7 +3,7 @@
 
 const GROUPS = {
   A: { teams: ['Mexico', 'South Korea', 'Czechia', 'South Africa'] },
-  B: { teams: ['Switzerland', 'Canada', 'Qatar', 'Bosnia and Herzegovina'] },
+  B: { teams: ['Switzerland', 'Canada', 'Qatar', 'Bosnia & Herz.'] },
   C: { teams: ['Brazil', 'Morocco', 'Scotland', 'Haiti'] },
   D: { teams: ['USA', 'Türkiye', 'Australia', 'Paraguay'] },
   E: { teams: ['Germany', 'Ecuador', "Côte d'Ivoire", 'Curaçao'] },
@@ -65,7 +65,7 @@ const FIFA_RANKINGS = {
   'South Africa': 60,
   'Saudi Arabia': 61,
   'Jordan': 63,
-  'Bosnia and Herzegovina': 65,
+  'Bosnia & Herz.': 65,
   'Cape Verde': 69,
   'Ghana': 74,
   'Curaçao': 82,
@@ -116,7 +116,7 @@ const FIFA_POINTS = {
   'South Africa': 1429.73,
   'Saudi Arabia': 1421.43,
   'Jordan': 1391.45,
-  'Bosnia and Herzegovina': 1385.84,
+  'Bosnia & Herz.': 1385.84,
   'Cape Verde': 1366.13,
   'Ghana': 1346.31,
   'Curaçao': 1294.65,
