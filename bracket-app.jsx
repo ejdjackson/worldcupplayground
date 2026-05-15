@@ -1,0 +1,986 @@
+// World Cup 2026 Bracket — interactive zoomable view
+const { useState, useRef, useEffect, useMemo, useCallback } = React;
+
+// ===== Timezone data =====
+const VENUE_TZ = {
+  'Atlanta': 'America/New_York',
+  'Boston': 'America/New_York',
+  'Dallas': 'America/Chicago',
+  'Houston': 'America/Chicago',
+  'Kansas City': 'America/Chicago',
+  'Los Angeles': 'America/Los_Angeles',
+  'Miami': 'America/New_York',
+  'New York / NJ': 'America/New_York',
+  'Philadelphia': 'America/New_York',
+  'Seattle': 'America/Los_Angeles',
+  'San Francisco': 'America/Los_Angeles',
+  'Toronto': 'America/Toronto',
+  'Vancouver': 'America/Vancouver',
+  'Guadalajara': 'America/Mexico_City',
+  'Mexico City': 'America/Mexico_City',
+  'Monterrey': 'America/Monterrey',
+};
+
+// Tournament window is late June – mid July 2026; all US/Canada cities are on DST,
+// Mexico has not observed DST since 2022. These offsets are stable for the window.
+const TZ_OFFSET_H = {
+  'America/New_York': -4,
+  'America/Chicago': -5,
+  'America/Los_Angeles': -7,
+  'America/Toronto': -4,
+  'America/Vancouver': -7,
+  'America/Mexico_City': -6,
+  'America/Monterrey': -6,
+};
+
+const MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+
+function matchToUtc(m) {
+  const tz = VENUE_TZ[m.venue] || 'America/New_York';
+  const off = TZ_OFFSET_H[tz] ?? -4;
+  const dm = m.date.match(/(\d+)\s+([A-Za-z]+)/);
+  if (!dm) return Date.UTC(2026, 5, 27, 12, 0);
+  const day = parseInt(dm[1], 10);
+  const mon = MONTHS[dm[2]] ?? 5;
+  const [hh, mm] = m.time.split(':').map(Number);
+  return Date.UTC(2026, mon, day, hh - off, mm);
+}
+
+function fmtDate(utcMs, tz) {
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: tz }).format(new Date(utcMs));
+}
+function fmtTime(utcMs, tz) {
+  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(new Date(utcMs));
+}
+
+// Format a match's kickoff according to selected tz mode
+function fmtKickoff(m, tzMode, myTz) {
+  if (tzMode === 'venue') return { date: m.date, time: m.time };
+  const target = tzMode === 'mine' ? myTz : tzMode;
+  const utc = matchToUtc(m);
+  return { date: fmtDate(utc, target), time: fmtTime(utc, target) };
+}
+
+const TZ_OPTIONS = [
+  { v: 'venue', label: 'Venue local time' },
+  { v: 'mine', label: 'My local time' },
+  { v: '__sep__', label: '──────────' },
+  { v: 'UTC', label: 'UTC · Coordinated Universal' },
+  { v: 'America/Los_Angeles', label: 'Pacific · Los Angeles' },
+  { v: 'America/Denver', label: 'Mountain · Denver' },
+  { v: 'America/Chicago', label: 'Central · Chicago' },
+  { v: 'America/New_York', label: 'Eastern · New York' },
+  { v: 'America/Mexico_City', label: 'CST · Mexico City' },
+  { v: 'America/Sao_Paulo', label: 'BRT · São Paulo' },
+  { v: 'America/Buenos_Aires', label: 'ART · Buenos Aires' },
+  { v: 'Europe/London', label: 'BST · London' },
+  { v: 'Europe/Paris', label: 'CEST · Paris / Berlin / Madrid' },
+  { v: 'Europe/Moscow', label: 'MSK · Moscow' },
+  { v: 'Africa/Lagos', label: 'WAT · Lagos' },
+  { v: 'Africa/Johannesburg', label: 'SAST · Johannesburg' },
+  { v: 'Asia/Dubai', label: 'GST · Dubai' },
+  { v: 'Asia/Kolkata', label: 'IST · Mumbai / Delhi' },
+  { v: 'Asia/Bangkok', label: 'ICT · Bangkok' },
+  { v: 'Asia/Singapore', label: 'SGT · Singapore' },
+  { v: 'Asia/Tokyo', label: 'JST · Tokyo / Seoul' },
+  { v: 'Australia/Sydney', label: 'AEST · Sydney' },
+];
+
+function offsetLabelFor(tz) {
+  // Compute current offset for a given IANA tz on July 1, 2026
+  try {
+    const ref = new Date(Date.UTC(2026, 6, 1, 12, 0, 0));
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(ref);
+    const off = parts.find(p => p.type === 'timeZoneName')?.value || '';
+    return off.replace('GMT', 'UTC');
+  } catch (e) { return ''; }
+}
+
+// ===== Layout constants =====
+const MATCH_H = 84;
+const GAP = 14;
+const UNIT = MATCH_H + GAP; // 78
+const COL_W = 240;
+const FINAL_COL_W = 280;
+const COL_GAP = 32;
+const PAD_X = 64;
+const PAD_Y = 60;
+const HEADER_H = 56; // column header
+const CENTER_GAP = 56;
+
+// Column x positions (left edge inside padding)
+const LEFT_SF_X = (COL_W + COL_GAP) * 3;
+const COL_X = {
+  L_R32: 0,
+  L_R16: COL_W + COL_GAP,
+  L_QF: (COL_W + COL_GAP) * 2,
+  L_SF: LEFT_SF_X,
+  FINAL: LEFT_SF_X + COL_W + CENTER_GAP,
+  R_SF: LEFT_SF_X + COL_W + CENTER_GAP + FINAL_COL_W + CENTER_GAP,
+  R_QF: LEFT_SF_X + COL_W + CENTER_GAP + FINAL_COL_W + CENTER_GAP + COL_W + COL_GAP,
+  R_R16: LEFT_SF_X + COL_W + CENTER_GAP + FINAL_COL_W + CENTER_GAP + (COL_W + COL_GAP) * 2,
+  R_R32: LEFT_SF_X + COL_W + CENTER_GAP + FINAL_COL_W + CENTER_GAP + (COL_W + COL_GAP) * 3,
+};
+
+const COL_RIGHT = {
+  L_R32: COL_X.L_R32 + COL_W,
+  L_R16: COL_X.L_R16 + COL_W,
+  L_QF: COL_X.L_QF + COL_W,
+  L_SF: COL_X.L_SF + COL_W,
+  FINAL: COL_X.FINAL + FINAL_COL_W,
+  R_SF: COL_X.R_SF + COL_W,
+  R_QF: COL_X.R_QF + COL_W,
+  R_R16: COL_X.R_R16 + COL_W,
+  R_R32: COL_X.R_R32 + COL_W,
+};
+
+// Match top y by side-local index. Left side is the original upper half; right side is the original lower half.
+const yR32 = (i) => (i % 8) * UNIT;
+const yR16 = (i) => (2 * (i % 4) + 0.5) * UNIT;
+const yQF  = (i) => (4 * (i % 2) + 1.5) * UNIT;
+const ySF  = () => 3.5 * UNIT;
+const yFinal = () => ySF();
+const yThird = () => yFinal() + MATCH_H + 90;
+
+const TOTAL_W = COL_RIGHT.R_R32;
+const TOTAL_H = 8 * UNIT - GAP;
+const CONTENT_H = Math.max(TOTAL_H, yThird() + MATCH_H + 16);
+
+function colFor(round, i) {
+  if (round === 'R32') return i < 8 ? COL_X.L_R32 : COL_X.R_R32;
+  if (round === 'R16') return i < 4 ? COL_X.L_R16 : COL_X.R_R16;
+  if (round === 'QF') return i < 2 ? COL_X.L_QF : COL_X.R_QF;
+  if (round === 'SF') return i === 0 ? COL_X.L_SF : COL_X.R_SF;
+  return COL_X.FINAL;
+}
+
+function yFor(round, i) {
+  if (round === 'R32') return yR32(i);
+  if (round === 'R16') return yR16(i);
+  if (round === 'QF') return yQF(i);
+  if (round === 'SF') return ySF();
+  return yFinal();
+}
+
+// ===== Zoom presets =====
+// Each preset defines a target rect in bracket coords (inside the .bracket padding)
+const PRESETS = {
+  overview: { x: -20, y: -HEADER_H - 20, w: TOTAL_W + 40, h: CONTENT_H + HEADER_H + 40, label: 'Overview' },
+  'r32-top': { x: COL_X.L_R32 - 30, y: yR32(0) - HEADER_H - 10, w: COL_RIGHT.L_SF - COL_X.L_R32 + 60, h: TOTAL_H + HEADER_H + 20, label: 'Left half' },
+  'r32-bot': { x: COL_X.R_SF - 30, y: yR32(0) - HEADER_H - 10, w: COL_RIGHT.R_R32 - COL_X.R_SF + 60, h: TOTAL_H + HEADER_H + 20, label: 'Right half' },
+  r16: { x: COL_X.L_R16 - 60, y: yR16(0) - HEADER_H - 10, w: COL_RIGHT.R_R16 - COL_X.L_R16 + 120, h: yR16(3) + MATCH_H - yR16(0) + HEADER_H + 20, label: 'Round of 16' },
+  qf: { x: COL_X.L_QF - 80, y: yQF(0) - HEADER_H - 10, w: COL_RIGHT.R_QF - COL_X.L_QF + 160, h: yQF(1) + MATCH_H - yQF(0) + HEADER_H + 20, label: 'Quarter-finals' },
+  sf: { x: COL_X.L_SF - 100, y: ySF() - HEADER_H - 60, w: COL_RIGHT.R_SF - COL_X.L_SF + 200, h: MATCH_H + HEADER_H + 120, label: 'Semi-finals' },
+  final: { x: COL_X.FINAL - 80, y: yFinal() - HEADER_H - 30, w: FINAL_COL_W + 160, h: (yThird() + MATCH_H) - yFinal() + HEADER_H + 50, label: 'Final & 3rd Place' },
+};
+
+const ZOOM_BUTTONS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'r32-top', label: 'Left' },
+  { id: 'r32-bot', label: 'Right' },
+  { id: 'r16', label: 'R16' },
+  { id: 'qf', label: 'QF' },
+  { id: 'sf', label: 'SF' },
+  { id: 'final', label: 'Final' },
+];
+
+// ===== Match card =====
+function isKOId(id) {
+  return parseInt(String(id).replace(/\D/g, ''), 10) >= 73;
+}
+
+function knockoutResultFor(match, pred) {
+  if (!isKOId(match.id) || !pred || pred.s1 == null || pred.s2 == null) return null;
+  const hasPens = pred.p1 != null && pred.p2 != null;
+  const method = hasPens ? `AET · Pens ${pred.p1}-${pred.p2}` : pred.aet ? 'AET' : '';
+  return { s1: pred.s1, s2: pred.s2, method };
+}
+
+function MatchCard({ m, compact, focused, onClick, style, dataId, tzMode, myTz, pred }) {
+  const isPlaceholder = (n) => /^(Winner|Runner|Loser|3rd|Best)/.test(n);
+  const kk = fmtKickoff(m, tzMode, myTz);
+  const shortDate = kk.date.replace(/^[A-Za-z]+,?\s*/, '');
+  const winner = m.winnerName;
+  const t1Won = winner && winner === m.team1.name;
+  const t2Won = winner && winner === m.team2.name;
+  const result = knockoutResultFor(m, pred);
+  return (
+    <div
+      className={`match ${compact ? 'compact' : ''} ${focused ? 'focused' : ''} ${result ? 'result-known' : ''}`}
+      data-id={dataId || m.id}
+      style={style}
+      onClick={(e) => { e.stopPropagation(); onClick && onClick(m); }}
+    >
+      <div className="meta-row">
+        <span className="venue"><span className="dot" />{m.venue}</span>
+        <span className="date-time">{shortDate} · {kk.time}</span>
+      </div>
+      <div className="teams">
+        <div className={`team ${t1Won ? 'won' : (winner && !t1Won) ? 'eliminated' : ''}`}>
+          <span className="seed">{m.team1.src.replace(/^Wm/, 'W').replace(/^Lm/, 'L').slice(0, 4)}</span>
+          <span className={`name ${isPlaceholder(m.team1.name) ? 'placeholder' : ''}`}>
+            {m.team1.name}
+          </span>
+          {result && <span className="ko-score">{result.s1}</span>}
+        </div>
+        <div className={`team ${t2Won ? 'won' : (winner && !t2Won) ? 'eliminated' : ''}`}>
+          <span className="seed">{m.team2.src.replace(/^Wm/, 'W').replace(/^Lm/, 'L').slice(0, 4)}</span>
+          <span className={`name ${isPlaceholder(m.team2.name) ? 'placeholder' : ''}`}>
+            {m.team2.name}
+          </span>
+          {result && <span className="ko-score">{result.s2}</span>}
+        </div>
+      </div>
+      {result?.method && <div className="ko-method">{result.method}</div>}
+    </div>
+  );
+}
+
+// ===== Column header =====
+function ColHeader({ label, dates, count }) {
+  return (
+    <div className="col-header" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: HEADER_H - 14, margin: 0 }}>
+      <div className="label">{label}</div>
+      <span className="dates">{dates} · {count} {count === 1 ? 'match' : 'matches'}</span>
+    </div>
+  );
+}
+
+// ===== Connectors =====
+function Connectors({ highlightSet }) {
+  // Draw paths between rounds
+  const segs = [];
+
+  // helper to push a 3-segment path A -> mid -> B (where mid x is between cols)
+  function connect(ax, ay, bx, by, midX, key, hi) {
+    const cls = hi ? 'highlight' : '';
+    segs.push(
+      <path key={key} className={cls} d={`M ${ax} ${ay} L ${midX} ${ay} L ${midX} ${by} L ${bx} ${by}`} />
+    );
+  }
+
+  // Left half: original upper bracket flows right toward the final.
+  for (let i = 0; i < 4; i++) {
+    const a = i * 2;
+    const b = i * 2 + 1;
+    const targetY = yR16(i) + MATCH_H / 2;
+    const targetX = COL_X.L_R16;
+    const sourceX = COL_RIGHT.L_R32;
+    const midX = (sourceX + targetX) / 2;
+    const hi = highlightSet === 'r16' || highlightSet === 'r32-top';
+    connect(sourceX, yR32(a) + MATCH_H / 2, targetX, targetY, midX, `r32-${a}`, hi);
+    connect(sourceX, yR32(b) + MATCH_H / 2, targetX, targetY, midX, `r32-${b}`, hi);
+  }
+  for (let i = 0; i < 2; i++) {
+    const a = i * 2;
+    const b = i * 2 + 1;
+    const targetY = yQF(i) + MATCH_H / 2;
+    const targetX = COL_X.L_QF;
+    const sourceX = COL_RIGHT.L_R16;
+    const midX = (sourceX + targetX) / 2;
+    const hi = highlightSet === 'qf';
+    connect(sourceX, yR16(a) + MATCH_H / 2, targetX, targetY, midX, `r16-${a}`, hi);
+    connect(sourceX, yR16(b) + MATCH_H / 2, targetX, targetY, midX, `r16-${b}`, hi);
+  }
+  {
+    const targetY = ySF() + MATCH_H / 2;
+    const targetX = COL_X.L_SF;
+    const sourceX = COL_RIGHT.L_QF;
+    const midX = (sourceX + targetX) / 2;
+    const hi = highlightSet === 'sf';
+    connect(sourceX, yQF(0) + MATCH_H / 2, targetX, targetY, midX, 'qf-0', hi);
+    connect(sourceX, yQF(1) + MATCH_H / 2, targetX, targetY, midX, 'qf-1', hi);
+  }
+  {
+    const targetY = yFinal() + MATCH_H / 2;
+    const targetX = COL_X.FINAL;
+    const sourceX = COL_RIGHT.L_SF;
+    const midX = (sourceX + targetX) / 2;
+    const hi = highlightSet === 'final';
+    connect(sourceX, ySF(0) + MATCH_H / 2, targetX, targetY, midX, `sf-0`, hi);
+  }
+
+  // Right half: original lower bracket flows left toward the final.
+  for (let i = 4; i < 8; i++) {
+    const a = i * 2;
+    const b = i * 2 + 1;
+    const targetY = yR16(i) + MATCH_H / 2;
+    const targetX = COL_RIGHT.R_R16;
+    const sourceX = COL_X.R_R32;
+    const midX = (sourceX + targetX) / 2;
+    const hi = highlightSet === 'r16' || highlightSet === 'r32-bot';
+    connect(sourceX, yR32(a) + MATCH_H / 2, targetX, targetY, midX, `r32-${a}`, hi);
+    connect(sourceX, yR32(b) + MATCH_H / 2, targetX, targetY, midX, `r32-${b}`, hi);
+  }
+  for (let i = 2; i < 4; i++) {
+    const a = i * 2;
+    const b = i * 2 + 1;
+    const targetY = yQF(i) + MATCH_H / 2;
+    const targetX = COL_RIGHT.R_QF;
+    const sourceX = COL_X.R_R16;
+    const midX = (sourceX + targetX) / 2;
+    const hi = highlightSet === 'qf';
+    connect(sourceX, yR16(a) + MATCH_H / 2, targetX, targetY, midX, `r16-${a}`, hi);
+    connect(sourceX, yR16(b) + MATCH_H / 2, targetX, targetY, midX, `r16-${b}`, hi);
+  }
+  {
+    const targetY = ySF() + MATCH_H / 2;
+    const targetX = COL_RIGHT.R_SF;
+    const sourceX = COL_X.R_QF;
+    const midX = (sourceX + targetX) / 2;
+    const hi = highlightSet === 'sf';
+    connect(sourceX, yQF(2) + MATCH_H / 2, targetX, targetY, midX, 'qf-2', hi);
+    connect(sourceX, yQF(3) + MATCH_H / 2, targetX, targetY, midX, 'qf-3', hi);
+  }
+  {
+    const targetY = yFinal() + MATCH_H / 2;
+    const targetX = COL_RIGHT.FINAL;
+    const sourceX = COL_X.R_SF;
+    const midX = (sourceX + targetX) / 2;
+    const hi = highlightSet === 'final';
+    connect(sourceX, ySF(1) + MATCH_H / 2, targetX, targetY, midX, `sf-1`, hi);
+  }
+
+  // SF losers -> 3rd place (dashed, drawn separately)
+  {
+    const targetY = yThird() + MATCH_H / 2;
+    const leftTargetX = COL_X.FINAL;
+    const leftSourceX = COL_RIGHT.L_SF;
+    const leftMidX = (leftSourceX + leftTargetX) / 2 + 10;
+    const rightTargetX = COL_RIGHT.FINAL;
+    const rightSourceX = COL_X.R_SF;
+    const rightMidX = (rightSourceX + rightTargetX) / 2 - 10;
+    segs.push(
+      <path
+        key="3p-0"
+        d={`M ${leftSourceX} ${ySF(0) + MATCH_H / 2 + 4} L ${leftMidX} ${ySF(0) + MATCH_H / 2 + 4} L ${leftMidX} ${targetY - 6} L ${leftTargetX} ${targetY - 6}`}
+        strokeDasharray="3 4"
+        style={{ stroke: 'var(--ink-mute)', strokeWidth: 1 }}
+      />
+    );
+    segs.push(
+      <path
+        key="3p-1"
+        d={`M ${rightSourceX} ${ySF(1) + MATCH_H / 2 + 4} L ${rightMidX} ${ySF(1) + MATCH_H / 2 + 4} L ${rightMidX} ${targetY + 6} L ${rightTargetX} ${targetY + 6}`}
+        strokeDasharray="3 4"
+        style={{ stroke: 'var(--ink-mute)', strokeWidth: 1 }}
+      />
+    );
+  }
+
+  return (
+    <svg className="connectors" width={TOTAL_W} height={CONTENT_H} style={{ left: 0, top: 0 }}>
+      {segs}
+    </svg>
+  );
+}
+
+// ===== Bracket layout =====
+function Bracket({ data, preds = {}, onMatch, focusedId, compactMode, tzMode, myTz }) {
+  const colHeaderStyle = (xLeft, w) => ({
+    position: 'absolute',
+    left: xLeft,
+    top: -HEADER_H,
+    width: w,
+  });
+
+  return (
+    <div className="bracket" style={{ width: TOTAL_W, height: CONTENT_H, position: 'relative' }}>
+      {/* Column headers */}
+      <div className="col-header" style={colHeaderStyle(COL_X.L_R32, COL_W)}>
+        <div className="label">Round of 32</div>
+        <span className="dates">Left half · 8 matches</span>
+      </div>
+      <div className="col-header" style={colHeaderStyle(COL_X.L_R16, COL_W)}>
+        <div className="label">Round of 16</div>
+        <span className="dates">Left half · 4 matches</span>
+      </div>
+      <div className="col-header" style={colHeaderStyle(COL_X.L_QF, COL_W)}>
+        <div className="label">Quarter-finals</div>
+        <span className="dates">Left half · 2 matches</span>
+      </div>
+      <div className="col-header" style={colHeaderStyle(COL_X.L_SF, COL_W)}>
+        <div className="label">Semi-finals</div>
+        <span className="dates">Match 101</span>
+      </div>
+      <div className="col-header" style={colHeaderStyle(COL_X.FINAL, FINAL_COL_W)}>
+        <div className="label">Final · 3rd Place</div>
+        <span className="dates">Jul 18 & Jul 19</span>
+      </div>
+      <div className="col-header" style={colHeaderStyle(COL_X.R_SF, COL_W)}>
+        <div className="label">Semi-finals</div>
+        <span className="dates">Match 102</span>
+      </div>
+      <div className="col-header" style={colHeaderStyle(COL_X.R_QF, COL_W)}>
+        <div className="label">Quarter-finals</div>
+        <span className="dates">Right half · 2 matches</span>
+      </div>
+      <div className="col-header" style={colHeaderStyle(COL_X.R_R16, COL_W)}>
+        <div className="label">Round of 16</div>
+        <span className="dates">Right half · 4 matches</span>
+      </div>
+      <div className="col-header" style={colHeaderStyle(COL_X.R_R32, COL_W)}>
+        <div className="label">Round of 32</div>
+        <span className="dates">Right half · 8 matches</span>
+      </div>
+
+      <Connectors highlightSet={compactMode} />
+
+      {/* R32 matches */}
+      {data.R32.map((m, i) => (
+        <MatchCard
+          key={m.id}
+          m={m}
+          tzMode={tzMode}
+          myTz={myTz}
+          compact={false}
+          focused={focusedId === m.id}
+          onClick={onMatch}
+          pred={preds[m.id]}
+          style={{ position: 'absolute', left: colFor('R32', i), top: yFor('R32', i), width: COL_W, height: MATCH_H }}
+        />
+      ))}
+      {/* R16 */}
+      {data.R16.map((m, i) => (
+        <MatchCard
+          key={m.id}
+          m={m}
+          tzMode={tzMode}
+          myTz={myTz}
+          focused={focusedId === m.id}
+          onClick={onMatch}
+          pred={preds[m.id]}
+          style={{ position: 'absolute', left: colFor('R16', i), top: yFor('R16', i), width: COL_W, height: MATCH_H }}
+        />
+      ))}
+      {/* QF */}
+      {data.QF.map((m, i) => (
+        <MatchCard
+          key={m.id}
+          m={m}
+          tzMode={tzMode}
+          myTz={myTz}
+          focused={focusedId === m.id}
+          onClick={onMatch}
+          pred={preds[m.id]}
+          style={{ position: 'absolute', left: colFor('QF', i), top: yFor('QF', i), width: COL_W, height: MATCH_H }}
+        />
+      ))}
+      {/* SF */}
+      {data.SF.map((m, i) => (
+        <MatchCard
+          key={m.id}
+          m={m}
+          tzMode={tzMode}
+          myTz={myTz}
+          focused={focusedId === m.id}
+          onClick={onMatch}
+          pred={preds[m.id]}
+          style={{ position: 'absolute', left: colFor('SF', i), top: yFor('SF', i), width: COL_W, height: MATCH_H }}
+        />
+      ))}
+      {/* Final */}
+      {(() => {
+        const kkF = fmtKickoff(data.FINAL, tzMode, myTz);
+        const dF = kkF.date.replace(/^[A-Za-z]+,?\s*/, '');
+        const isPlaceholder = (n) => /^(Winner|Runner|Loser|3rd|Best)/.test(n);
+        const w = data.FINAL.winnerName;
+        const t1W = w && w === data.FINAL.team1.name;
+        const t2W = w && w === data.FINAL.team2.name;
+        const result = knockoutResultFor(data.FINAL, preds[data.FINAL.id]);
+        return (
+      <div
+        className={`match final ${focusedId === data.FINAL.id ? 'focused' : ''} ${result ? 'result-known' : ''}`}
+        data-id={data.FINAL.id}
+        style={{ position: 'absolute', left: COL_X.FINAL, top: yFinal(), width: FINAL_COL_W, height: MATCH_H + 16 }}
+        onClick={() => onMatch(data.FINAL)}
+      >
+        <div className="meta-row">
+          <span className="venue"><span className="dot" style={{ background: 'var(--amber)' }} />{data.FINAL.venue} · MetLife Stadium</span>
+          <span className="date-time" style={{ color: 'var(--amber)' }}>{dF} · {kkF.time}</span>
+        </div>
+        <div className="teams">
+          <div className={`team ${t1W ? 'won' : (w && !t1W) ? 'eliminated' : ''}`}>
+            <span className="seed" style={{ background: 'rgba(245,165,36,0.18)', color: 'var(--amber)' }}>W101</span>
+            <span className={`name ${isPlaceholder(data.FINAL.team1.name) ? 'placeholder' : ''}`}>{data.FINAL.team1.name}</span>
+            {result && <span className="ko-score">{result.s1}</span>}
+          </div>
+          <div className={`team ${t2W ? 'won' : (w && !t2W) ? 'eliminated' : ''}`}>
+            <span className="seed" style={{ background: 'rgba(245,165,36,0.18)', color: 'var(--amber)' }}>W102</span>
+            <span className={`name ${isPlaceholder(data.FINAL.team2.name) ? 'placeholder' : ''}`}>{data.FINAL.team2.name}</span>
+            {result && <span className="ko-score">{result.s2}</span>}
+          </div>
+        </div>
+        {result?.method && <div className="ko-method">{result.method}</div>}
+      </div>
+        );
+      })()}
+
+      {/* Third place */}
+      {(() => {
+        const kkT = fmtKickoff(data.TP, tzMode, myTz);
+        const dT = kkT.date.replace(/^[A-Za-z]+,?\s*/, '');
+        const isPlaceholder = (n) => /^(Winner|Runner|Loser|3rd|Best)/.test(n);
+        const w = data.TP.winnerName;
+        const t1W = w && w === data.TP.team1.name;
+        const t2W = w && w === data.TP.team2.name;
+        const result = knockoutResultFor(data.TP, preds[data.TP.id]);
+        return (
+      <div
+        className={`match third ${focusedId === data.TP.id ? 'focused' : ''} ${result ? 'result-known' : ''}`}
+        data-id={data.TP.id}
+        style={{
+          position: 'absolute', left: COL_X.FINAL, top: yThird(), width: FINAL_COL_W, height: MATCH_H + 16,
+          border: '1px dashed var(--line-2)', background: 'transparent'
+        }}
+        onClick={() => onMatch(data.TP)}
+      >
+        <div className="meta-row">
+          <span className="venue"><span className="dot" />3rd Place · {data.TP.venue}</span>
+          <span className="date-time">{dT} · {kkT.time}</span>
+        </div>
+        <div className="teams">
+          <div className={`team ${t1W ? 'won' : (w && !t1W) ? 'eliminated' : ''}`}>
+            <span className="seed">L101</span>
+            <span className={`name ${isPlaceholder(data.TP.team1.name) ? 'placeholder' : ''}`}>{data.TP.team1.name}</span>
+            {result && <span className="ko-score">{result.s1}</span>}
+          </div>
+          <div className={`team ${t2W ? 'won' : (w && !t2W) ? 'eliminated' : ''}`}>
+            <span className="seed">L102</span>
+            <span className={`name ${isPlaceholder(data.TP.team2.name) ? 'placeholder' : ''}`}>{data.TP.team2.name}</span>
+            {result && <span className="ko-score">{result.s2}</span>}
+          </div>
+        </div>
+        {result?.method && <div className="ko-method">{result.method}</div>}
+      </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ===== Bracket View (the actual bracket pane) =====
+function BracketView({ preds, setPred, tzMode, myTz, zoom, setZoom, resolutions }) {
+  const data = window.BRACKET;
+
+  // Override team names for KO matches using the resolutions map
+  const resolvedData = useMemo(() => {
+    const apply = (m) => {
+      const r = resolutions[m.id];
+      if (!r) return m;
+      return {
+        ...m,
+        team1: r.team1 ? { ...m.team1, name: r.team1 } : m.team1,
+        team2: r.team2 ? { ...m.team2, name: r.team2 } : m.team2,
+        winnerName: r.winner,
+      };
+    };
+    return {
+      ...data,
+      R32: data.R32.map(apply),
+      R16: data.R16.map(apply),
+      QF: data.QF.map(apply),
+      SF: data.SF.map(apply),
+      TP: apply(data.TP),
+      FINAL: apply(data.FINAL),
+    };
+  }, [data, resolutions]);
+
+  const [focusedMatch, setFocusedMatch] = useState(null);
+  const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const viewportRef = useRef(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+
+  const computeTransform = useCallback((presetId) => {
+    const vp = viewportRef.current;
+    if (!vp) return { scale: 1, x: 0, y: 0 };
+    const preset = PRESETS[presetId];
+    const vw = vp.clientWidth;
+    const vh = vp.clientHeight;
+    const rectX = preset.x + PAD_X;
+    const rectY = preset.y + PAD_Y + HEADER_H;
+    const rectW = preset.w;
+    const rectH = preset.h;
+    const scale = Math.min(vw / rectW, vh / rectH) * 0.95;
+    const cx = rectX + rectW / 2;
+    const cy = rectY + rectH / 2;
+    const x = vw / 2 - cx * scale;
+    const y = vh / 2 - cy * scale;
+    return { scale, x, y };
+  }, []);
+
+  useEffect(() => {
+    const update = () => {
+      const t = computeTransform(zoom);
+      setTransform(t);
+      setPanOffset({ x: 0, y: 0 });
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [zoom, computeTransform]);
+
+  const onMouseDown = (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('.match') || e.target.closest('.side-panel') || e.target.closest('.zoom-btn')) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+    viewportRef.current.style.cursor = 'grabbing';
+  };
+  const onMouseMove = (e) => {
+    if (!isDragging.current) return;
+    setPanOffset({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
+  };
+  const onMouseUp = () => {
+    isDragging.current = false;
+    if (viewportRef.current) viewportRef.current.style.cursor = 'grab';
+  };
+
+  useEffect(() => {
+    window.addEventListener('mouseup', onMouseUp);
+    return () => window.removeEventListener('mouseup', onMouseUp);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+      if (e.key === 'Escape') { setFocusedMatch(null); return; }
+      const idx = parseInt(e.key, 10);
+      if (idx >= 1 && idx <= ZOOM_BUTTONS.length) setZoom(ZOOM_BUTTONS[idx - 1].id);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const stageStyle = {
+    transform: `translate(${transform.x + panOffset.x}px, ${transform.y + panOffset.y}px) scale(${transform.scale})`,
+  };
+
+  return (
+    <div
+      className="viewport"
+      ref={viewportRef}
+      style={{ cursor: 'grab' }}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onClick={(e) => { if (!e.target.closest('.match')) setFocusedMatch(null); }}
+    >
+      <div className="stage" style={stageStyle}>
+        <div style={{ padding: `${PAD_Y + HEADER_H}px ${PAD_X}px ${PAD_Y}px ${PAD_X}px`, position: 'relative' }}>
+          <Bracket data={resolvedData} preds={preds} onMatch={setFocusedMatch} focusedId={focusedMatch?.id} compactMode={zoom} tzMode={tzMode} myTz={myTz} />
+        </div>
+      </div>
+
+      {focusedMatch && <SidePanel match={focusedMatch} onClose={() => setFocusedMatch(null)} tzMode={tzMode} myTz={myTz} pred={preds[focusedMatch.id]} setPred={setPred} teamsKnown={!!(focusedMatch.team1?.name && focusedMatch.team2?.name && !/^(Winner|Runner|Loser|3rd|Best)/.test(focusedMatch.team1.name) && !/^(Winner|Runner|Loser|3rd|Best)/.test(focusedMatch.team2.name))} />}
+
+      <div className="legend">
+        <div className="row"><span className="sw amber" /> Active path</div>
+        <div className="row"><span className="sw line" /> Bracket flow</div>
+        <div className="row"><span className="sw dashed" /> Loser → 3rd place</div>
+      </div>
+
+      <div className="pan-hint">
+        <kbd>1</kbd>–<kbd>7</kbd> jump zoom · drag to pan · <kbd>Esc</kbd> close
+      </div>
+    </div>
+  );
+}
+
+// ===== App shell with tabs =====
+const TABS = [
+  { id: 'teams', label: 'Teams' },
+  { id: 'matches', label: 'Matches' },
+  { id: 'groups', label: 'Groups' },
+  { id: 'bracket', label: 'Bracket' },
+];
+
+function App() {
+  const myTz = useMemo(() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return 'UTC'; }
+  }, []);
+  const [tab, setTab] = useState(() => {
+    try { return localStorage.getItem('wc26-tab') || 'bracket'; } catch (e) { return 'bracket'; }
+  });
+  const [zoom, setZoom] = useState('overview');
+  const [tzMode, setTzMode] = useState(() => {
+    try { return localStorage.getItem('wc26-tz') || 'venue'; } catch (e) { return 'venue'; }
+  });
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('wc26-theme');
+      return saved === 'ivory' ? 'ivory' : 'midnight';
+    } catch (e) { return 'midnight'; }
+  });
+
+  useEffect(() => { try { localStorage.setItem('wc26-tab', tab); } catch (e) {} }, [tab]);
+  useEffect(() => { try { localStorage.setItem('wc26-tz', tzMode); } catch (e) {} }, [tzMode]);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('wc26-theme', theme); } catch (e) {}
+  }, [theme]);
+
+  const { preds, set: setPred, clear: clearPreds, fillRandom, simulateTournament } = window.PREDICTIONS.usePredictions();
+
+  // Compute group standings + KO resolutions once; share across all views
+  const standings = useMemo(() => window.PREDICTIONS.computeAllStandings(preds), [preds]);
+  const thirdRanks = useMemo(() => window.PREDICTIONS.rankThirdPlaced(standings), [standings]);
+  const resolutions = useMemo(() => window.PREDICTIONS.resolveAllKOTeams(preds, standings, thirdRanks), [preds, standings, thirdRanks]);
+
+  return (
+    <div className="app">
+      <header className="bar">
+        <div className="brand">
+          <div className="mark" />
+          <div>
+            <div className="title">World Cup 2026</div>
+            <div className="sub">USA · Canada · Mexico</div>
+          </div>
+        </div>
+
+        <nav className="tabs">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              className={`tab ${tab === t.id ? 'active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        <button
+          className="run-sim-btn"
+          onClick={() => { if (confirm('Simulate the full tournament from scratch using FIFA points? This will overwrite all current predictions.')) simulateTournament(); }}
+        >
+          Run Simulation
+        </button>
+
+        <TZPicker value={tzMode} onChange={setTzMode} myTz={myTz} />
+        <ThemePicker value={theme} onChange={setTheme} />
+
+        {tab === 'bracket' && (
+          <div className="zoom-controls">
+            {ZOOM_BUTTONS.map((b, i) => (
+              <button
+                key={b.id}
+                className={`zoom-btn ${zoom === b.id ? 'active' : ''}`}
+                onClick={() => setZoom(b.id)}
+                title={`Press ${i + 1}`}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </header>
+
+      {tab === 'bracket' && (
+        <BracketView preds={preds} setPred={setPred} tzMode={tzMode} myTz={myTz} zoom={zoom} setZoom={setZoom} resolutions={resolutions} />
+      )}
+      {tab === 'groups' && (
+        <div className="tab-pane scroll">
+          {React.createElement(window.GroupsView, { preds })}
+        </div>
+      )}
+      {tab === 'teams' && (
+        <div className="tab-pane scroll">
+          {React.createElement(window.TeamsView)}
+        </div>
+      )}
+      {tab === 'matches' && (
+        <div className="tab-pane scroll">
+          {React.createElement(window.MatchesView, { preds, setPred, clearPreds, fillRandom, resolutions })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SidePanel({ match, onClose, tzMode, myTz, pred, setPred, teamsKnown }) {
+  const venueK = { date: match.date, time: match.time };
+  const selK = fmtKickoff(match, tzMode, myTz);
+  const showBoth = tzMode !== 'venue';
+  const tzLabel = tzMode === 'mine' ? `${myTz}` : tzMode;
+
+  const s1 = pred?.s1 ?? '';
+  const s2 = pred?.s2 ?? '';
+  const p1 = pred?.p1 ?? '';
+  const p2 = pred?.p2 ?? '';
+  const isDraw = pred && pred.s1 != null && pred.s2 != null && pred.s1 === pred.s2;
+
+  // Group matches: M1–M72. Knockout: M73+
+  const isKO = isKOId(match.id);
+  const result = knockoutResultFor(match, pred);
+
+  const onScore = (which, val) => {
+    const n = val === '' ? null : Math.max(0, Math.min(20, parseInt(val, 10) || 0));
+    const next = {
+      s1: which === 's1' ? n : (pred?.s1 ?? null),
+      s2: which === 's2' ? n : (pred?.s2 ?? null),
+      p1: pred?.p1 ?? null,
+      p2: pred?.p2 ?? null,
+    };
+    if (next.s1 != null && next.s2 != null && next.s1 !== next.s2) {
+      next.p1 = null; next.p2 = null;
+    }
+    if (next.s1 == null && next.s2 == null && next.p1 == null && next.p2 == null) setPred(match.id, null);
+    else setPred(match.id, next);
+  };
+  const onPens = (which, val) => {
+    const n = val === '' ? null : Math.max(0, Math.min(20, parseInt(val, 10) || 0));
+    setPred(match.id, {
+      s1: pred?.s1 ?? null,
+      s2: pred?.s2 ?? null,
+      p1: which === 'p1' ? n : (pred?.p1 ?? null),
+      p2: which === 'p2' ? n : (pred?.p2 ?? null),
+    });
+  };
+
+  return (
+    <div className="side-panel">
+      <button className="sp-close" onClick={onClose}>×</button>
+      <div className="sp-id">{match.id}</div>
+      <div className="sp-round">{roundOf(match.id)}</div>
+
+      <div className="sp-divider" />
+
+      <div className="sp-row"><span className="lbl">Venue</span><span className="val">{match.venue}</span></div>
+      <div className="sp-row"><span className="lbl">Local kick-off</span><span className="val">{venueK.date} · {venueK.time}</span></div>
+      {showBoth && (
+        <div className="sp-row">
+          <span className="lbl">In {tzLabel}</span>
+          <span className="val" style={{ color: 'var(--amber)' }}>{selK.date} · {selK.time}</span>
+        </div>
+      )}
+
+      <div className="sp-divider" />
+
+      <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--ink-mute)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+        {teamsKnown ? (isKO ? 'Simulated result' : 'Predict the score') : 'Awaiting prior result'}
+      </div>
+
+      {result && (
+        <div className="sp-result">
+          <span>{result.s1}-{result.s2}</span>
+          {result.method && <b>{result.method}</b>}
+        </div>
+      )}
+
+      <div className="sp-score">
+        <div className="sp-side">
+          <div className="sp-side-name">{match.team1.name}</div>
+          <input
+            type="number" min="0" max="20"
+            value={s1}
+            onChange={(e) => onScore('s1', e.target.value)}
+            placeholder="–"
+            disabled={!teamsKnown}
+          />
+        </div>
+        <span className="sp-dash">:</span>
+        <div className="sp-side">
+          <div className="sp-side-name">{match.team2.name}</div>
+          <input
+            type="number" min="0" max="20"
+            value={s2}
+            onChange={(e) => onScore('s2', e.target.value)}
+            placeholder="–"
+            disabled={!teamsKnown}
+          />
+        </div>
+      </div>
+
+      {isKO && isDraw && (
+        <div className="sp-pens">
+          <div className="sp-pens-label">After extra time → Penalties</div>
+          <div className="sp-pens-row">
+            <input type="number" min="0" max="20" value={p1} onChange={(e) => onPens('p1', e.target.value)} placeholder="–" />
+            <span className="sp-dash">:</span>
+            <input type="number" min="0" max="20" value={p2} onChange={(e) => onPens('p2', e.target.value)} placeholder="–" />
+          </div>
+        </div>
+      )}
+
+      <div className="sp-divider" />
+
+      <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--ink-mute)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        Qualification
+      </div>
+      <div className="sp-teams">
+        <div className="sp-team">
+          <div className="nm">{match.team1.name}</div>
+          <div className="src">slot · {match.team1.src}</div>
+        </div>
+        <div className="sp-team" style={{ position: 'relative' }}>
+          <div style={{ position: 'absolute', top: -8, left: 12, background: 'var(--bg)', padding: '0 6px', fontFamily: 'JetBrains Mono', fontSize: 9, color: 'var(--ink-mute)', letterSpacing: '0.1em' }}>VS</div>
+          <div className="nm">{match.team2.name}</div>
+          <div className="src">slot · {match.team2.src}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TZPicker({ value, onChange, myTz }) {
+  let offStr = '';
+  if (value === 'venue') offStr = 'each venue';
+  else if (value === 'mine') offStr = `${myTz} (${offsetLabelFor(myTz)})`;
+  else offStr = offsetLabelFor(value);
+  return (
+    <div className="tz-picker">
+      <span className="label">Times in</span>
+      <div className="tz-select-wrap">
+        <select value={value} onChange={(e) => { if (e.target.value !== '__sep__') onChange(e.target.value); }}>
+          {TZ_OPTIONS.map(o => (
+            <option key={o.v} value={o.v} disabled={o.v === '__sep__'}>
+              {o.v === 'mine' ? `My local time · ${myTz}` : o.label}
+            </option>
+          ))}
+        </select>
+        <span className="caret">▾</span>
+      </div>
+      <span className="offset">{offStr}</span>
+    </div>
+  );
+}
+
+const THEMES = [
+  { id: 'midnight', name: 'Dark', bg: '#0b1020', accent: '#f5a524' },
+  { id: 'ivory', name: 'Light', bg: '#f4efe6', accent: '#b5371a' },
+];
+
+function ThemePicker({ value, onChange }) {
+  return (
+    <div className="theme-picker">
+      <span className="label">Theme</span>
+      {THEMES.map(t => (
+        <button
+          key={t.id}
+          className={`swatch ${value === t.id ? 'active' : ''}`}
+          title={t.name}
+          aria-label={`Theme: ${t.name}`}
+          onClick={() => onChange(t.id)}
+          style={{
+            background: `linear-gradient(135deg, ${t.bg} 0%, ${t.bg} 50%, ${t.accent} 50%, ${t.accent} 100%)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function roundOf(id) {
+  const n = parseInt(id.replace(/\D/g, ''), 10);
+  if (n >= 73 && n <= 88) return 'Round of 32';
+  if (n >= 89 && n <= 96) return 'Round of 16';
+  if (n >= 97 && n <= 100) return 'Quarter-final';
+  if (n >= 101 && n <= 102) return 'Semi-final';
+  if (n === 103) return 'Third place play-off';
+  if (n === 104) return 'Final';
+  return '';
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
