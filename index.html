@@ -178,6 +178,17 @@
     background: var(--amber);
     font-weight: 600;
   }
+  .overview-btn {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+  }
+  .overview-btn:hover {
+    border-color: var(--line-2);
+  }
+  .zoom-quick {
+    display: flex;
+    gap: 6px;
+  }
 
   .meta {
     display: flex;
@@ -865,43 +876,16 @@
   }
   .tab-pane.scroll { padding: 28px 32px 60px; }
 
+  @media (max-width: 640px) {
+    .tab-pane.scroll { padding: 16px 10px 56px; }
+  }
+
+  @media (max-width: 400px) {
+    .tab-pane.scroll { padding: 12px 0 56px; }
+  }
+
   /* ---------- Groups view ---------- */
   .groups-view { max-width: 1800px; margin: 0 auto; }
-  .gv-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 24px;
-    padding: 16px 20px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    gap: 24px;
-    flex-wrap: wrap;
-  }
-  .gv-summary { display: flex; align-items: baseline; gap: 8px; }
-  .gv-num {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--amber);
-    line-height: 1;
-  }
-  .gv-num-lbl {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11px;
-    color: var(--ink-mute);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-  .gv-legend { display: flex; gap: 20px; font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-dim); letter-spacing: 0.05em; }
-  .gv-legend .row { display: flex; align-items: center; gap: 6px; }
-  .gv-legend .sw {
-    width: 14px; height: 14px; border-radius: 3px;
-  }
-  .gv-legend .sw.qualify { background: var(--amber); }
-  .gv-legend .sw.third { background: var(--amber-soft); border: 1px solid var(--amber); }
-
   .gv-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
@@ -987,44 +971,6 @@
 
   /* ---------- Teams view ---------- */
   .teams-view { max-width: 980px; margin: 0 auto; }
-  .tv-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 24px;
-    padding: 16px 20px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    gap: 24px;
-    flex-wrap: wrap;
-  }
-  .tv-summary { display: flex; align-items: baseline; gap: 8px; }
-  .tv-num {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--amber);
-    line-height: 1;
-  }
-  .tv-num-lbl {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11px;
-    color: var(--ink-mute);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-  .tv-stats {
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 10px;
-    color: var(--ink-dim);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-  .tv-stats b { color: var(--ink); font-weight: 600; }
   .tv-table-wrap {
     background: var(--panel);
     border: 1px solid var(--line);
@@ -1036,6 +982,7 @@
     border-collapse: collapse;
     font-family: "JetBrains Mono", monospace;
     font-size: 12px;
+    table-layout: fixed;
   }
   .tv-table th, .tv-table td {
     padding: 12px 16px;
@@ -1053,10 +1000,15 @@
   }
   .tv-table tbody tr:last-child td { border-bottom: 0; }
   .tv-table tbody tr:hover { background: color-mix(in srgb, var(--amber) 7%, transparent); }
-  .tv-table td.rank {
+  .tv-table th.rank, .tv-table td.rank {
     width: 130px;
+  }
+  .tv-table td.rank {
     color: var(--amber);
     font-weight: 600;
+  }
+  .tv-table th.team, .tv-table td.team {
+    width: auto;
   }
   .tv-table td.team {
     color: var(--ink);
@@ -1066,9 +1018,10 @@
   }
   .tv-table th.points, .tv-table td.points {
     width: 120px;
-    text-align: right;
+    text-align: center;
     white-space: nowrap;
   }
+  .points-short { display: none; }
   .tv-table td.points { color: var(--ink); }
   .tv-table .team-name {
     display: inline-flex;
@@ -1076,7 +1029,116 @@
     border-bottom: 1px dotted color-mix(in srgb, var(--amber) 70%, transparent);
     cursor: default;
   }
-  .tv-table td.group { width: 130px; color: var(--ink-dim); }
+  .tv-table th.group, .tv-table td.group {
+    width: 80px;
+    text-align: center;
+  }
+  .tv-table td.group { color: var(--ink-dim); }
+
+  @media (max-width: 640px) {
+    .teams-view {
+      max-width: none;
+      width: 100%;
+    }
+    .tv-table {
+      display: block;
+      table-layout: auto;
+    }
+    .tv-table thead,
+    .tv-table tbody {
+      display: block;
+    }
+    .tv-table tr {
+      display: grid;
+      grid-template-columns:
+        clamp(44px, 13vw, 64px)
+        minmax(0, 1fr)
+        clamp(92px, 26vw, 118px)
+        clamp(42px, 11vw, 52px);
+      align-items: center;
+    }
+    .tv-table th, .tv-table td {
+      display: block;
+      width: auto !important;
+      min-width: 0;
+      padding: clamp(8px, 2.5vw, 12px) clamp(4px, 1.8vw, 8px);
+      font-size: clamp(10px, 2.8vw, 12px);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+    }
+    .tv-table th {
+      font-size: clamp(8px, 2.4vw, 10px);
+      letter-spacing: 0.06em;
+    }
+    .tv-table th.rank, .tv-table td.rank {
+      padding-left: clamp(8px, 2.8vw, 12px);
+    }
+    .tv-table th.points, .tv-table td.points {
+      padding-left: clamp(4px, 1.6vw, 6px);
+      padding-right: clamp(4px, 1.6vw, 6px);
+      text-align: center;
+    }
+    .tv-table th.points {
+      font-size: clamp(7px, 2.1vw, 9px);
+      letter-spacing: 0.04em;
+    }
+    .tv-table th.group, .tv-table td.group {
+      padding-left: 4px;
+      padding-right: clamp(12px, 3.5vw, 18px);
+      text-align: center;
+    }
+    .tv-table td.team {
+      font-size: clamp(12px, 3.4vw, 14px);
+      padding-left: clamp(6px, 2.4vw, 10px);
+      padding-right: clamp(4px, 1.8vw, 6px);
+    }
+    .tv-table .team-name {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .tv-table tbody tr:last-child td { border-bottom: 0; }
+  }
+
+  @media (max-width: 400px) {
+    .tv-table-wrap {
+      border-left: 0;
+      border-right: 0;
+      border-radius: 0;
+    }
+    .tv-table tr {
+      grid-template-columns:
+        clamp(34px, 10vw, 40px)
+        clamp(108px, 38vw, 138px)
+        clamp(72px, 21vw, 86px)
+        clamp(34px, 10vw, 42px);
+      justify-content: center;
+    }
+    .tv-table th, .tv-table td {
+      padding-top: 9px;
+      padding-bottom: 9px;
+      font-size: clamp(9px, 2.7vw, 11px);
+    }
+    .tv-table th {
+      font-size: clamp(7px, 2.2vw, 9px);
+      letter-spacing: 0.04em;
+    }
+    .tv-table td.team {
+      font-size: clamp(11px, 3.2vw, 13px);
+      padding-left: 5px;
+      padding-right: 4px;
+    }
+    .tv-table th.points {
+      font-size: clamp(6px, 1.9vw, 8px);
+    }
+    .points-full { display: none; }
+    .points-short { display: inline; }
+    .tv-table th.group, .tv-table td.group {
+      padding-left: 0;
+      padding-right: 6px;
+    }
+  }
   .tv-squad-modal {
     position: fixed;
     z-index: 50;
@@ -1466,12 +1528,12 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
 <script src="bracket-data.js?v=20260515-0935"></script>
-<script src="teams-data.js?v=20260515-0935"></script>
+<script src="teams-data.js?v=20260515-1401"></script>
 <script src="player-elo-ratings.js?v=20260515-0935"></script>
 <script type="text/babel" src="predictions.js?v=20260515-1110"></script>
-<script type="text/babel" src="groups-view.jsx?v=20260515-0935"></script>
-<script type="text/babel" src="teams-view.jsx?v=20260515-0935"></script>
-<script type="text/babel" src="matches-view.jsx?v=20260515-1120"></script>
-<script type="text/babel" src="bracket-app.jsx?v=20260515-1121"></script>
+<script type="text/babel" src="groups-view.jsx?v=20260515-1425"></script>
+<script type="text/babel" src="teams-view.jsx?v=20260515-1412"></script>
+<script type="text/babel" src="matches-view.jsx?v=20260515-1422"></script>
+<script type="text/babel" src="bracket-app.jsx?v=20260515-1450"></script>
 </body>
 </html>

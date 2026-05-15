@@ -166,23 +166,29 @@ function yFor(round, i) {
 // Each preset defines a target rect in bracket coords (inside the .bracket padding)
 const PRESETS = {
   overview: { x: -20, y: -HEADER_H - 20, w: TOTAL_W + 40, h: CONTENT_H + HEADER_H + 40, label: 'Overview' },
-  'r32-top': { x: COL_X.L_R32 - 30, y: yR32(0) - HEADER_H - 10, w: COL_RIGHT.L_SF - COL_X.L_R32 + 60, h: TOTAL_H + HEADER_H + 20, label: 'Left half' },
-  'r32-bot': { x: COL_X.R_SF - 30, y: yR32(0) - HEADER_H - 10, w: COL_RIGHT.R_R32 - COL_X.R_SF + 60, h: TOTAL_H + HEADER_H + 20, label: 'Right half' },
-  r16: { x: COL_X.L_R16 - 60, y: yR16(0) - HEADER_H - 10, w: COL_RIGHT.R_R16 - COL_X.L_R16 + 120, h: yR16(3) + MATCH_H - yR16(0) + HEADER_H + 20, label: 'Round of 16' },
-  qf: { x: COL_X.L_QF - 80, y: yQF(0) - HEADER_H - 10, w: COL_RIGHT.R_QF - COL_X.L_QF + 160, h: yQF(1) + MATCH_H - yQF(0) + HEADER_H + 20, label: 'Quarter-finals' },
-  sf: { x: COL_X.L_SF - 100, y: ySF() - HEADER_H - 60, w: COL_RIGHT.R_SF - COL_X.L_SF + 200, h: MATCH_H + HEADER_H + 120, label: 'Semi-finals' },
+  'l-r32': { x: COL_X.L_R32 - 70, y: yR32(0) - HEADER_H - 70, w: COL_W + 140, h: MATCH_H + HEADER_H + 140, label: 'Left Round of 32' },
+  'l-r16': { x: COL_X.L_R16 - 70, y: yR16(0) - HEADER_H - 70, w: COL_W + 140, h: MATCH_H + HEADER_H + 140, label: 'Left Round of 16' },
+  'l-qf': { x: COL_X.L_QF - 70, y: yQF(0) - HEADER_H - 70, w: COL_W + 140, h: MATCH_H + HEADER_H + 140, label: 'Left Quarter-finals' },
+  'l-sf': { x: COL_X.L_SF - 70, y: ySF() - HEADER_H - 70, w: COL_W + 140, h: MATCH_H + HEADER_H + 140, label: 'Left Semi-final' },
   final: { x: COL_X.FINAL - 80, y: yFinal() - HEADER_H - 30, w: FINAL_COL_W + 160, h: (yThird() + MATCH_H) - yFinal() + HEADER_H + 50, label: 'Final & 3rd Place' },
+  'r-sf': { x: COL_X.R_SF - 70, y: ySF() - HEADER_H - 70, w: COL_W + 140, h: MATCH_H + HEADER_H + 140, label: 'Right Semi-final' },
+  'r-qf': { x: COL_X.R_QF - 70, y: yQF(0) - HEADER_H - 70, w: COL_W + 140, h: MATCH_H + HEADER_H + 140, label: 'Right Quarter-finals' },
+  'r-r16': { x: COL_X.R_R16 - 70, y: yR16(0) - HEADER_H - 70, w: COL_W + 140, h: MATCH_H + HEADER_H + 140, label: 'Right Round of 16' },
+  'r-r32': { x: COL_X.R_R32 - 70, y: yR32(0) - HEADER_H - 70, w: COL_W + 140, h: MATCH_H + HEADER_H + 140, label: 'Right Round of 32' },
 };
 
 const ZOOM_BUTTONS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'r32-top', label: 'Left' },
-  { id: 'r32-bot', label: 'Right' },
-  { id: 'r16', label: 'R16' },
-  { id: 'qf', label: 'QF' },
-  { id: 'sf', label: 'SF' },
-  { id: 'final', label: 'Final' },
+  { id: 'l-r32', label: 'R32' },
+  { id: 'l-r16', label: 'R16' },
+  { id: 'l-qf', label: 'QF' },
+  { id: 'l-sf', label: 'SF' },
+  { id: 'r-sf', label: 'SF' },
+  { id: 'r-qf', label: 'QF' },
+  { id: 'r-r16', label: 'R16' },
+  { id: 'r-r32', label: 'R32' },
 ];
+
+const ZOOM_KEYS = [{ id: 'overview' }, { id: 'final' }, ...ZOOM_BUTTONS];
 
 // ===== Match card =====
 function isKOId(id) {
@@ -267,7 +273,7 @@ function Connectors({ highlightSet }) {
     const targetX = COL_X.L_R16;
     const sourceX = COL_RIGHT.L_R32;
     const midX = (sourceX + targetX) / 2;
-    const hi = highlightSet === 'r16' || highlightSet === 'r32-top';
+    const hi = highlightSet === 'l-r16' || highlightSet === 'l-r32';
     connect(sourceX, yR32(a) + MATCH_H / 2, targetX, targetY, midX, `r32-${a}`, hi);
     connect(sourceX, yR32(b) + MATCH_H / 2, targetX, targetY, midX, `r32-${b}`, hi);
   }
@@ -278,7 +284,7 @@ function Connectors({ highlightSet }) {
     const targetX = COL_X.L_QF;
     const sourceX = COL_RIGHT.L_R16;
     const midX = (sourceX + targetX) / 2;
-    const hi = highlightSet === 'qf';
+    const hi = highlightSet === 'l-qf';
     connect(sourceX, yR16(a) + MATCH_H / 2, targetX, targetY, midX, `r16-${a}`, hi);
     connect(sourceX, yR16(b) + MATCH_H / 2, targetX, targetY, midX, `r16-${b}`, hi);
   }
@@ -287,7 +293,7 @@ function Connectors({ highlightSet }) {
     const targetX = COL_X.L_SF;
     const sourceX = COL_RIGHT.L_QF;
     const midX = (sourceX + targetX) / 2;
-    const hi = highlightSet === 'sf';
+    const hi = highlightSet === 'l-sf';
     connect(sourceX, yQF(0) + MATCH_H / 2, targetX, targetY, midX, 'qf-0', hi);
     connect(sourceX, yQF(1) + MATCH_H / 2, targetX, targetY, midX, 'qf-1', hi);
   }
@@ -308,7 +314,7 @@ function Connectors({ highlightSet }) {
     const targetX = COL_RIGHT.R_R16;
     const sourceX = COL_X.R_R32;
     const midX = (sourceX + targetX) / 2;
-    const hi = highlightSet === 'r16' || highlightSet === 'r32-bot';
+    const hi = highlightSet === 'r-r16' || highlightSet === 'r-r32';
     connect(sourceX, yR32(a) + MATCH_H / 2, targetX, targetY, midX, `r32-${a}`, hi);
     connect(sourceX, yR32(b) + MATCH_H / 2, targetX, targetY, midX, `r32-${b}`, hi);
   }
@@ -319,7 +325,7 @@ function Connectors({ highlightSet }) {
     const targetX = COL_RIGHT.R_QF;
     const sourceX = COL_X.R_R16;
     const midX = (sourceX + targetX) / 2;
-    const hi = highlightSet === 'qf';
+    const hi = highlightSet === 'r-qf';
     connect(sourceX, yR16(a) + MATCH_H / 2, targetX, targetY, midX, `r16-${a}`, hi);
     connect(sourceX, yR16(b) + MATCH_H / 2, targetX, targetY, midX, `r16-${b}`, hi);
   }
@@ -328,7 +334,7 @@ function Connectors({ highlightSet }) {
     const targetX = COL_RIGHT.R_SF;
     const sourceX = COL_X.R_QF;
     const midX = (sourceX + targetX) / 2;
-    const hi = highlightSet === 'sf';
+    const hi = highlightSet === 'r-sf';
     connect(sourceX, yQF(2) + MATCH_H / 2, targetX, targetY, midX, 'qf-2', hi);
     connect(sourceX, yQF(3) + MATCH_H / 2, targetX, targetY, midX, 'qf-3', hi);
   }
@@ -647,8 +653,8 @@ function BracketView({ preds, setPred, tzMode, myTz, zoom, setZoom, resolutions 
     const onKey = (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
       if (e.key === 'Escape') { setFocusedMatch(null); return; }
-      const idx = parseInt(e.key, 10);
-      if (idx >= 1 && idx <= ZOOM_BUTTONS.length) setZoom(ZOOM_BUTTONS[idx - 1].id);
+      const idx = e.key === '0' ? 10 : parseInt(e.key, 10);
+      if (idx >= 1 && idx <= ZOOM_KEYS.length) setZoom(ZOOM_KEYS[idx - 1].id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -682,7 +688,7 @@ function BracketView({ preds, setPred, tzMode, myTz, zoom, setZoom, resolutions 
       </div>
 
       <div className="pan-hint">
-        <kbd>1</kbd>–<kbd>7</kbd> jump zoom · drag to pan · <kbd>Esc</kbd> close
+        <kbd>1</kbd>–<kbd>0</kbd> jump zoom · drag to pan · <kbd>Esc</kbd> close
       </div>
     </div>
   );
@@ -721,7 +727,7 @@ function App() {
     try { localStorage.setItem('wc26-theme', theme); } catch (e) {}
   }, [theme]);
 
-  const { preds, set: setPred, clear: clearPreds, fillRandom, simulateTournament } = window.PREDICTIONS.usePredictions();
+  const { preds, set: setPred, clear: clearPreds, simulateTournament } = window.PREDICTIONS.usePredictions();
 
   // Compute group standings + KO resolutions once; share across all views
   const standings = useMemo(() => window.PREDICTIONS.computeAllStandings(preds), [preds]);
@@ -751,29 +757,47 @@ function App() {
           ))}
         </nav>
 
-        <button
-          className="run-sim-btn"
-          onClick={() => { if (confirm('Simulate the full tournament from scratch using FIFA points? This will overwrite all current predictions.')) simulateTournament(); }}
-        >
-          Run Simulation
-        </button>
+            <button
+              className="run-sim-btn"
+              onClick={simulateTournament}
+            >
+              Run Simulation
+            </button>
 
         <TZPicker value={tzMode} onChange={setTzMode} myTz={myTz} />
         <ThemePicker value={theme} onChange={setTheme} />
 
         {tab === 'bracket' && (
-          <div className="zoom-controls">
-            {ZOOM_BUTTONS.map((b, i) => (
+          <>
+            <div className="zoom-quick">
               <button
-                key={b.id}
-                className={`zoom-btn ${zoom === b.id ? 'active' : ''}`}
-                onClick={() => setZoom(b.id)}
-                title={`Press ${i + 1}`}
+                className={`zoom-btn overview-btn ${zoom === 'overview' ? 'active' : ''}`}
+                onClick={() => setZoom('overview')}
+                title="Press 1"
               >
-                {b.label}
+                Overview
               </button>
-            ))}
-          </div>
+              <button
+                className={`zoom-btn overview-btn ${zoom === 'final' ? 'active' : ''}`}
+                onClick={() => setZoom('final')}
+                title="Press 2"
+              >
+                Final
+              </button>
+            </div>
+            <div className="zoom-controls">
+              {ZOOM_BUTTONS.map((b, i) => (
+                <button
+                  key={b.id}
+                  className={`zoom-btn ${zoom === b.id ? 'active' : ''}`}
+                  onClick={() => setZoom(b.id)}
+                  title={`Press ${i + 3 === 10 ? 0 : i + 3}`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </header>
 
@@ -792,7 +816,7 @@ function App() {
       )}
       {tab === 'matches' && (
         <div className="tab-pane scroll">
-          {React.createElement(window.MatchesView, { preds, setPred, clearPreds, fillRandom, resolutions })}
+          {React.createElement(window.MatchesView, { preds, setPred, clearPreds, resolutions })}
         </div>
       )}
     </div>
