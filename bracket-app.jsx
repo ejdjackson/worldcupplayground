@@ -595,9 +595,13 @@ function BracketView({ preds, setPred, tzMode, myTz, zoom, setZoom, resolutions 
   const [focusedMatch, setFocusedMatch] = useState(null);
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
   const viewportRef = useRef(null);
   const isDragging = useRef(false);
+  const activePointerId = useRef(null);
   const dragStart = useRef({ x: 0, y: 0 });
+  const pointerStart = useRef({ x: 0, y: 0 });
+  const suppressClick = useRef(false);
 
   const computeTransform = useCallback((presetId) => {
     const vp = viewportRef.current;
@@ -628,26 +632,54 @@ function BracketView({ preds, setPred, tzMode, myTz, zoom, setZoom, resolutions 
     return () => window.removeEventListener('resize', update);
   }, [zoom, computeTransform]);
 
-  const onMouseDown = (e) => {
-    if (e.button !== 0) return;
-    if (e.target.closest('.match') || e.target.closest('.side-panel') || e.target.closest('.zoom-btn')) return;
+  const isInteractiveTarget = (target) => (
+    target.closest('.side-panel') ||
+    target.closest('.zoom-btn') ||
+    target.closest('.tab') ||
+    target.closest('.run-sim-btn') ||
+    target.closest('.tz-picker') ||
+    target.closest('.theme-picker') ||
+    target.closest('button') ||
+    target.closest('input') ||
+    target.closest('select')
+  );
+
+  const onPointerDown = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (isInteractiveTarget(e.target)) return;
     isDragging.current = true;
+    activePointerId.current = e.pointerId;
+    setIsPanning(true);
     dragStart.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
-    viewportRef.current.style.cursor = 'grabbing';
+    pointerStart.current = { x: e.clientX, y: e.clientY };
+    suppressClick.current = false;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    e.currentTarget.style.cursor = 'grabbing';
   };
-  const onMouseMove = (e) => {
-    if (!isDragging.current) return;
+
+  const onPointerMove = (e) => {
+    if (!isDragging.current || e.pointerId !== activePointerId.current) return;
+    const dx = e.clientX - pointerStart.current.x;
+    const dy = e.clientY - pointerStart.current.y;
+    if (Math.hypot(dx, dy) > 4) suppressClick.current = true;
     setPanOffset({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
   };
-  const onMouseUp = () => {
+
+  const endPointerDrag = (e) => {
+    if (e && activePointerId.current != null && e.pointerId !== activePointerId.current) return;
     isDragging.current = false;
+    activePointerId.current = null;
+    setIsPanning(false);
+    e?.currentTarget?.releasePointerCapture?.(e.pointerId);
     if (viewportRef.current) viewportRef.current.style.cursor = 'grab';
   };
 
-  useEffect(() => {
-    window.addEventListener('mouseup', onMouseUp);
-    return () => window.removeEventListener('mouseup', onMouseUp);
-  }, []);
+  const onViewportClickCapture = (e) => {
+    if (!suppressClick.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    suppressClick.current = false;
+  };
 
   useEffect(() => {
     const onKey = (e) => {
@@ -669,11 +701,14 @@ function BracketView({ preds, setPred, tzMode, myTz, zoom, setZoom, resolutions 
       className="viewport"
       ref={viewportRef}
       style={{ cursor: 'grab' }}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endPointerDrag}
+      onPointerCancel={endPointerDrag}
+      onClickCapture={onViewportClickCapture}
       onClick={(e) => { if (!e.target.closest('.match')) setFocusedMatch(null); }}
     >
-      <div className="stage" style={stageStyle}>
+      <div className={`stage ${isPanning ? 'panning' : ''}`} style={stageStyle}>
         <div style={{ padding: `${PAD_Y + HEADER_H}px ${PAD_X}px ${PAD_Y}px ${PAD_X}px`, position: 'relative' }}>
           <Bracket data={resolvedData} preds={preds} onMatch={setFocusedMatch} focusedId={focusedMatch?.id} compactMode={zoom} tzMode={tzMode} myTz={myTz} />
         </div>
@@ -681,15 +716,6 @@ function BracketView({ preds, setPred, tzMode, myTz, zoom, setZoom, resolutions 
 
       {focusedMatch && <SidePanel match={focusedMatch} onClose={() => setFocusedMatch(null)} tzMode={tzMode} myTz={myTz} pred={preds[focusedMatch.id]} setPred={setPred} teamsKnown={!!(focusedMatch.team1?.name && focusedMatch.team2?.name && !/^(Winner|Runner|Loser|3rd|Best)/.test(focusedMatch.team1.name) && !/^(Winner|Runner|Loser|3rd|Best)/.test(focusedMatch.team2.name))} />}
 
-      <div className="legend">
-        <div className="row"><span className="sw amber" /> Active path</div>
-        <div className="row"><span className="sw line" /> Bracket flow</div>
-        <div className="row"><span className="sw dashed" /> Loser → 3rd place</div>
-      </div>
-
-      <div className="pan-hint">
-        <kbd>1</kbd>–<kbd>0</kbd> jump zoom · drag to pan · <kbd>Esc</kbd> close
-      </div>
     </div>
   );
 }

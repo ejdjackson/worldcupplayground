@@ -304,6 +304,8 @@
   .viewport {
     position: relative;
     overflow: hidden;
+    touch-action: none;
+    user-select: none;
     background:
       radial-gradient(1200px 600px at 50% -10%, rgba(245,165,36,0.05), transparent 60%),
       var(--bg);
@@ -326,6 +328,9 @@
     transform-origin: 0 0;
     transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
     will-change: transform;
+  }
+  .stage.panning {
+    transition: none;
   }
 
   /* ---------- Bracket layout ---------- */
@@ -761,58 +766,6 @@
     line-height: 1;
   }
   .sp-close:hover { color: var(--ink); }
-
-  /* ---------- Mini-map / legend bottom-left ---------- */
-  .legend {
-    position: absolute;
-    left: 20px;
-    bottom: 20px;
-    background: color-mix(in srgb, var(--panel) 90%, transparent);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 12px 14px;
-    z-index: 15;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 10px;
-    color: var(--ink-dim);
-    letter-spacing: 0.06em;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .legend .row { display: flex; align-items: center; gap: 8px; }
-  .legend .sw { width: 10px; height: 10px; border-radius: 2px; }
-  .legend .sw.amber { background: var(--amber); }
-  .legend .sw.line { background: var(--line-2); height: 2px; }
-  .legend .sw.dashed { border: 1px dashed var(--ink-mute); background: transparent; }
-
-  /* ---------- Pan affordance ---------- */
-  .pan-hint {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background: color-mix(in srgb, var(--panel) 90%, transparent);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 8px 12px;
-    z-index: 15;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 10px;
-    color: var(--ink-mute);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .pan-hint kbd {
-    display: inline-block;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 3px;
-    padding: 1px 5px;
-    color: var(--ink-dim);
-    margin: 0 2px;
-  }
 
   /* ---------- Tabs ---------- */
   .tabs {
@@ -1534,6 +1487,6 @@
 <script type="text/babel" src="groups-view.jsx?v=20260515-1425"></script>
 <script type="text/babel" src="teams-view.jsx?v=20260515-1412"></script>
 <script type="text/babel" src="matches-view.jsx?v=20260515-1422"></script>
-<script type="text/babel" src="bracket-app.jsx?v=20260515-1450"></script>
+<script type="text/babel" src="bracket-app.jsx?v=20260515-1615"></script>
 </body>
 </html>
