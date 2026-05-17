@@ -799,7 +799,8 @@
     border: 1px solid var(--line-2);
     padding: 7px 15px;
   }
-  .run-sim-btn {
+  .run-sim-btn,
+  .build-sim-btn {
     background: var(--amber);
     border: 1px solid var(--amber);
     color: var(--bg);
@@ -819,6 +820,16 @@
     filter: brightness(1.03);
     transform: translateY(-1px);
   }
+  .build-sim-btn {
+    background: var(--bg-2);
+    color: var(--ink);
+    border-color: var(--line-2);
+  }
+  .build-sim-btn:hover {
+    border-color: var(--amber);
+    color: var(--amber);
+    transform: translateY(-1px);
+  }
   [data-theme="ivory"] .tab:hover { background: rgba(0,0,0,0.04); }
 
   .tab-pane {
@@ -829,8 +840,409 @@
   }
   .tab-pane.scroll { padding: 28px 32px 60px; }
 
+  /* ---------- Simulation builder ---------- */
+  .sim-builder {
+    min-height: 0;
+  }
+  .sim-shell {
+    width: min(1080px, 100%);
+    margin: 0 auto;
+  }
+  .sim-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 6px 0 24px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 22px;
+  }
+  .sim-kicker {
+    font-family: "JetBrains Mono", monospace;
+    color: var(--amber);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 8px;
+  }
+  .sim-head h1,
+  .sim-panel h2 {
+    margin: 0;
+    color: var(--ink);
+    letter-spacing: 0;
+  }
+  .sim-head h1 {
+    font-size: 28px;
+    font-weight: 600;
+  }
+  .sim-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .sim-secondary-btn {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 9px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sim-secondary-btn:hover {
+    color: var(--ink);
+    border-color: var(--line-2);
+  }
+  .model-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .model-option {
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+    min-height: 126px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .model-option:hover {
+    border-color: var(--line-2);
+    transform: translateY(-1px);
+  }
+  .model-option.active {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 3px var(--amber-soft);
+  }
+  .model-option span {
+    display: block;
+    color: var(--ink);
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .model-option b {
+    display: block;
+    color: var(--ink-dim);
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 400;
+  }
+  .sim-panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .sim-panel.muted {
+    opacity: 0.72;
+  }
+  .sim-panel-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 18px;
+  }
+  .sim-panel h2 {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .sim-panel p {
+    margin: 6px 0 0;
+    color: var(--ink-dim);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .param-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .param-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  .param-field.wide {
+    grid-column: span 2;
+  }
+  .param-field span {
+    font-family: "JetBrains Mono", monospace;
+    color: var(--ink-mute);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .param-field input,
+  .param-field select {
+    width: 100%;
+    height: 40px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--ink);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    padding: 0 10px;
+    outline: none;
+  }
+  .param-field input:focus,
+  .param-field select:focus {
+    border-color: var(--amber);
+  }
+  .param-field select option {
+    background: var(--bg-2);
+    color: var(--ink);
+  }
+  .param-field small {
+    color: var(--ink-mute);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .shot-table-wrap {
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+  }
+  .shot-weight-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 18px;
+  }
+  .shot-table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+  }
+  .shot-table th,
+  .shot-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--line);
+    text-align: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+  .shot-table th {
+    background: var(--bg-2);
+    color: var(--ink-mute);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .shot-table th button {
+    width: 100%;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .shot-table th.team button {
+    justify-content: flex-start;
+  }
+  .shot-table th button:hover {
+    color: var(--ink);
+  }
+  .shot-table th button span {
+    display: inline-block;
+    width: 8px;
+    color: var(--amber);
+    font-size: 8px;
+  }
+  .shot-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .shot-table tbody tr:hover {
+    background: color-mix(in srgb, var(--panel) 82%, var(--amber) 18%);
+  }
+  .shot-table .team {
+    text-align: left;
+    color: var(--ink);
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .shot-table .fallback {
+    color: var(--amber);
+  }
+  .run-sim-btn:disabled,
+  .build-sim-btn:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .mc-shell {
+    width: min(1120px, 100%);
+    margin: 0 auto;
+  }
+  .mc-controls {
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) auto minmax(180px, auto) 1fr;
+    align-items: end;
+    gap: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+  .mc-controls .run-sim-btn {
+    min-height: 40px;
+  }
+  .mc-progress {
+    justify-self: end;
+    align-self: end;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-mute);
+    letter-spacing: 0.04em;
+  }
+  .mc-progress span {
+    color: var(--amber);
+    font-weight: 700;
+  }
+  .mc-progress b {
+    color: var(--ink-dim);
+    font-weight: 500;
+  }
+  .mc-metric {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 0 14px;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+  .mc-metric span {
+    color: var(--ink-mute);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .mc-metric b {
+    color: var(--amber);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .mc-table-wrap {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .mc-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .mc-table th,
+  .mc-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+    text-align: right;
+    font-size: 13px;
+  }
+  .mc-table th {
+    color: var(--ink-mute);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--bg-2);
+    font-weight: 600;
+  }
+  .mc-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .mc-table tbody tr:hover {
+    background: color-mix(in srgb, var(--panel) 88%, var(--amber) 12%);
+  }
+  .mc-table .rank {
+    width: 78px;
+    color: var(--ink-mute);
+    font-family: "JetBrains Mono", monospace;
+    text-align: left;
+  }
+  .mc-table .team {
+    color: var(--ink);
+    font-weight: 600;
+    text-align: left;
+  }
+  .mc-table td {
+    color: var(--ink-dim);
+    font-family: "JetBrains Mono", monospace;
+  }
+
   @media (max-width: 640px) {
     .tab-pane.scroll { padding: 16px 10px 56px; }
+    .sim-head,
+    .sim-panel-head {
+      align-items: stretch;
+      flex-direction: column;
+    }
+    .sim-actions {
+      justify-content: flex-start;
+    }
+    .model-grid,
+    .param-grid {
+      grid-template-columns: 1fr;
+    }
+    .shot-weight-grid {
+      grid-template-columns: 1fr;
+    }
+    .param-field.wide {
+      grid-column: span 1;
+    }
+    .sim-head h1 {
+      font-size: 24px;
+    }
+    .mc-controls {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+    .mc-progress {
+      justify-self: start;
+    }
+    .mc-table-wrap {
+      overflow-x: auto;
+    }
+    .mc-table {
+      min-width: 720px;
+    }
   }
 
   @media (max-width: 400px) {
@@ -1483,10 +1895,11 @@
 <script src="bracket-data.js?v=20260515-0935"></script>
 <script src="teams-data.js?v=20260515-1401"></script>
 <script src="player-elo-ratings.js?v=20260515-0935"></script>
+<script src="shot-model-data.js?v=20260516-0020"></script>
 <script type="text/babel" src="predictions.js?v=20260515-1110"></script>
 <script type="text/babel" src="groups-view.jsx?v=20260515-1425"></script>
 <script type="text/babel" src="teams-view.jsx?v=20260515-1412"></script>
-<script type="text/babel" src="matches-view.jsx?v=20260515-1422"></script>
-<script type="text/babel" src="bracket-app.jsx?v=20260515-1615"></script>
+<script type="text/babel" src="matches-view.jsx?v=20260516-0030"></script>
+<script type="text/babel" src="bracket-app.jsx?v=20260516-0030"></script>
 </body>
 </html>

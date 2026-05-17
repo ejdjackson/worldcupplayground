@@ -1,7 +1,7 @@
 // Matches view — score inputs for group + knockout matches
 const { useMemo: useMemoM, useState: useStateM } = React;
 
-function MatchesView({ preds, setPred, clearPreds, resolutions }) {
+function MatchesView({ preds, setPred, clearPreds, resolutions, tzMode = 'venue', myTz = 'UTC' }) {
   const { GROUP_MATCHES } = window.TEAMS_DATA;
   const data = window.BRACKET;
   const [filter, setFilter] = useStateM('all');
@@ -49,12 +49,13 @@ function MatchesView({ preds, setPred, clearPreds, resolutions }) {
     };
     visible.forEach(m => {
       const rawDay = m.rawDay ?? KO_DAY_MAP[m.date] ?? 99;
-      const key = `${rawDay}|${m.date}`;
-      if (!out[key]) out[key] = { date: m.date, rawDay, matches: [] };
+      const kickoff = window.WC_TIME?.fmtKickoff ? window.WC_TIME.fmtKickoff(m, tzMode, myTz) : { date: m.date, time: m.time };
+      const key = `${rawDay}|${kickoff.date}`;
+      if (!out[key]) out[key] = { date: kickoff.date, rawDay, matches: [] };
       out[key].matches.push(m);
     });
     return Object.values(out).sort((a, b) => a.rawDay - b.rawDay);
-  }, [visible]);
+  }, [visible, tzMode, myTz]);
 
   const predictedCount = useMemoM(() => Object.keys(preds).length, [preds]);
   const totalMatches = allMatches.length;
@@ -103,7 +104,7 @@ function MatchesView({ preds, setPred, clearPreds, resolutions }) {
             </div>
             <div className="mv-day-rows">
               {day.matches.map(m => (
-                <MatchRow key={m.id} m={m} pred={preds[m.id]} setPred={setPred} resolution={resolutions[m.id]} />
+                <MatchRow key={m.id} m={m} pred={preds[m.id]} setPred={setPred} resolution={resolutions[m.id]} tzMode={tzMode} myTz={myTz} />
               ))}
             </div>
           </div>
@@ -116,7 +117,7 @@ function MatchesView({ preds, setPred, clearPreds, resolutions }) {
   );
 }
 
-function MatchRow({ m, pred, setPred, resolution }) {
+function MatchRow({ m, pred, setPred, resolution, tzMode, myTz }) {
   // For group matches, team names come from m.team1/m.team2 (raw strings).
   // For KO matches, team names come from resolution.team1/team2 (or null if unresolved).
   const team1Name = m.isKO ? (resolution?.team1 || null) : m.team1;
@@ -168,6 +169,7 @@ function MatchRow({ m, pred, setPred, resolution }) {
   const isDraw = filled && pred.s1 === pred.s2;
   const isKO = m.isKO;
   const stageLabel = m.stage;
+  const kickoff = window.WC_TIME?.fmtKickoff ? window.WC_TIME.fmtKickoff(m, tzMode, myTz) : { date: m.date, time: m.time };
 
   const koPlaceholderName = (side) => {
     // Show parent slot description for an unresolved KO match
@@ -189,7 +191,7 @@ function MatchRow({ m, pred, setPred, resolution }) {
         <span className="mr-id">{m.id}</span>
         <span className={`mr-group ${isKO ? 'ko' : ''}`}>{stageLabel}</span>
         {!isKO && <span className="mr-md">MD{m.matchday}</span>}
-        <span className="mr-time">{m.time}</span>
+        <span className="mr-time">{kickoff.time}</span>
         <span className="mr-venue">{m.venue}</span>
       </div>
       <div className="mr-fixture">

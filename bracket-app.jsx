@@ -61,6 +61,8 @@ function fmtKickoff(m, tzMode, myTz) {
   return { date: fmtDate(utc, target), time: fmtTime(utc, target) };
 }
 
+window.WC_TIME = { matchToUtc, fmtKickoff };
+
 const TZ_OPTIONS = [
   { v: 'venue', label: 'Venue local time' },
   { v: 'mine', label: 'My local time' },
@@ -728,6 +730,408 @@ const TABS = [
   { id: 'bracket', label: 'Bracket' },
 ];
 
+function SimulationBuilder({ config, setConfig, resetConfig, onRun, onBack }) {
+  const updatePoisson = (key, value) => {
+    setConfig(prev => ({
+      ...prev,
+      poisson: {
+        ...prev.poisson,
+        [key]: value,
+      },
+    }));
+  };
+  const setNumber = (key, value) => {
+    updatePoisson(key, value === '' ? '' : Number(value));
+  };
+  const poisson = config.poisson;
+  const shotModel = config.shotModel;
+  const updateShotModel = (key, value) => {
+    setConfig(prev => ({
+      ...prev,
+      shotModel: {
+        ...prev.shotModel,
+        [key]: value === '' ? '' : Number(value),
+      },
+    }));
+  };
+  const [shotSort, setShotSort] = useState({ key: 'group', dir: 'asc' });
+  const shotColumns = [
+    { key: 'group', label: 'Group', type: 'text' },
+    { key: 'name', label: 'Team', type: 'text' },
+    { key: 'team_shots_per_game', label: 'Shots', type: 'number' },
+    { key: 'team_accuracy', label: 'On Target', type: 'number' },
+    { key: 'team_conversion', label: 'Scored', type: 'number' },
+    { key: 'opponent_shots_allowed', label: 'Opp shots', type: 'number' },
+    { key: 'opponent_accuracy_allowed', label: 'Opp on target', type: 'number' },
+    { key: 'opponent_conversion_allowed', label: 'Opp scored', type: 'number' },
+    { key: 'source', label: 'Source', type: 'text' },
+  ];
+  const onShotSort = (key) => {
+    setShotSort(prev => ({
+      key,
+      dir: prev.key === key && prev.dir === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+  const shotRows = useMemo(() => {
+    if (!window.SHOT_MODEL_DATA) return [];
+    const { GROUPS, GROUP_LETTERS } = window.TEAMS_DATA;
+    const rows = GROUP_LETTERS.flatMap(group =>
+      GROUPS[group].teams.map(name => {
+        const alias = window.SHOT_MODEL_DATA.aliases[name];
+        const sourceName = alias || name;
+        const isFallback = !window.SHOT_MODEL_DATA.rows[sourceName];
+        const params = window.SHOT_MODEL_DATA.paramsFor(name);
+        return { name, group, sourceName, source: 'Last 10 vs FIFA top 50', isFallback, ...params };
+      })
+    );
+    const col = shotColumns.find(column => column.key === shotSort.key) || shotColumns[0];
+    rows.sort((a, b) => {
+      let result;
+      if (col.type === 'number') {
+        result = (a[col.key] ?? 0) - (b[col.key] ?? 0);
+      } else {
+        result = String(a[col.key] ?? '').localeCompare(String(b[col.key] ?? ''));
+      }
+      if (result === 0) result = a.name.localeCompare(b.name);
+      return shotSort.dir === 'asc' ? result : -result;
+    });
+    return rows;
+  }, [shotSort]);
+
+  return (
+    <div className="tab-pane scroll sim-builder">
+      <div className="sim-shell">
+        <div className="sim-head">
+          <div>
+            <div className="sim-kicker">Simulation Builder</div>
+            <h1>Choose a match model</h1>
+          </div>
+          <div className="sim-actions">
+            <button className="sim-secondary-btn" onClick={onBack}>Back to Bracket</button>
+            <button className="run-sim-btn" onClick={onRun}>Run Simulation</button>
+          </div>
+        </div>
+
+        <div className="model-grid">
+          <button
+            className={`model-option ${config.model === 'coinFlip' ? 'active' : ''}`}
+            onClick={() => setConfig(prev => ({ ...prev, model: 'coinFlip' }))}
+          >
+            <span>Coin flip</span>
+            <b>Every fixture is 50/50. The winner gets a plausible football scoreline.</b>
+          </button>
+          <button
+            className={`model-option ${config.model === 'poisson' ? 'active' : ''}`}
+            onClick={() => setConfig(prev => ({ ...prev, model: 'poisson' }))}
+          >
+            <span>Poisson model of goals scored by team rating</span>
+            <b>Goals are sampled from each team rating, with stronger teams given a higher expected goal rate.</b>
+          </button>
+          <button
+            className={`model-option ${config.model === 'shotModel' ? 'active' : ''}`}
+            onClick={() => setConfig(prev => ({ ...prev, model: 'shotModel' }))}
+          >
+            <span>Three-stage shot model</span>
+            <b>Shots, shots on target, and goals are sampled from each team's attacking rates and the opponent's defensive rates.</b>
+          </button>
+        </div>
+
+        {config.model === 'shotModel' && (
+          <section className="sim-panel">
+            <div className="sim-panel-head">
+              <div>
+                <h2>Shot model inputs</h2>
+                <p>This model uses shots per game, shot accuracy, conversion, and the matching opponent-allowed rates. Missing teams use global averages from the imported CSV.</p>
+              </div>
+            </div>
+            <div className="param-grid shot-weight-grid">
+              <label className="param-field">
+                <span>Defense weighting</span>
+                <input
+                  type="number"
+                  min="0.3"
+                  max="0.7"
+                  step="0.05"
+                  value={shotModel.defenseWeighting}
+                  onChange={(e) => updateShotModel('defenseWeighting', e.target.value)}
+                />
+                <small>0 uses team shot volume; 1 uses opponent shots allowed. Default 0.5.</small>
+              </label>
+              <label className="param-field">
+                <span>Shot skill weighting</span>
+                <input
+                  type="number"
+                  min="0.3"
+                  max="0.7"
+                  step="0.05"
+                  value={shotModel.shotSkillWeighting}
+                  onChange={(e) => updateShotModel('shotSkillWeighting', e.target.value)}
+                />
+                <small>0 uses opponent on-target allowed; 1 uses team on-target rate. Default 0.5.</small>
+              </label>
+              <label className="param-field">
+                <span>Goalkeeper weighting</span>
+                <input
+                  type="number"
+                  min="0.3"
+                  max="0.7"
+                  step="0.05"
+                  value={shotModel.goalkeeperWeighting}
+                  onChange={(e) => updateShotModel('goalkeeperWeighting', e.target.value)}
+                />
+                <small>0 uses team scoring rate; 1 uses opponent scored-allowed rate. Default 0.5.</small>
+              </label>
+            </div>
+            <div className="shot-table-wrap">
+              <table className="shot-table">
+                <thead>
+                  <tr>
+                    {shotColumns.map(column => (
+                      <th key={column.key} className={column.key === 'name' ? 'team' : ''}>
+                        <button type="button" onClick={() => onShotSort(column.key)}>
+                          {column.label}
+                          <span>{shotSort.key === column.key ? (shotSort.dir === 'asc' ? '^' : 'v') : ''}</span>
+                        </button>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {shotRows.map(row => (
+                    <tr key={row.name}>
+                      <td>{row.group}</td>
+                      <td className="team">{row.name}</td>
+                      <td>{row.team_shots_per_game.toFixed(1)}</td>
+                      <td>{(row.team_accuracy * 100).toFixed(1)}%</td>
+                      <td>{(row.team_conversion * 100).toFixed(1)}%</td>
+                      <td>{row.opponent_shots_allowed.toFixed(1)}</td>
+                      <td>{(row.opponent_accuracy_allowed * 100).toFixed(1)}%</td>
+                      <td>{(row.opponent_conversion_allowed * 100).toFixed(1)}%</td>
+                      <td>{row.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        <section className={`sim-panel ${config.model !== 'poisson' ? 'muted' : ''}`}>
+          <div className="sim-panel-head">
+            <div>
+              <h2>Poisson settings</h2>
+              <p>The current model turns FIFA team strength into expected goals, then samples a score for each team.</p>
+            </div>
+            <button className="sim-secondary-btn" onClick={resetConfig}>Reset defaults</button>
+          </div>
+
+          <div className="param-grid">
+            <label className="param-field wide">
+              <span>Rating input</span>
+              <select
+                value={poisson.ratingSource}
+                onChange={(e) => updatePoisson('ratingSource', e.target.value)}
+              >
+                <option value="fifaPoints">FIFA points</option>
+                <option value="fifaRankings">FIFA ranking position</option>
+              </select>
+              <small>FIFA points are the richer input. Ranking position is converted to a rough strength score.</small>
+            </label>
+
+            <label className="param-field">
+              <span>Base goals</span>
+              <input
+                type="number"
+                min="0.2"
+                max="6"
+                step="0.1"
+                value={poisson.baseRate}
+                onChange={(e) => setNumber('baseRate', e.target.value)}
+              />
+              <small>Expected goals for an evenly matched team over 90 minutes.</small>
+            </label>
+
+            <label className="param-field">
+              <span>Rating sensitivity</span>
+              <input
+                type="number"
+                min="0"
+                max="6"
+                step="0.1"
+                value={poisson.sensitivity}
+                onChange={(e) => setNumber('sensitivity', e.target.value)}
+              />
+              <small>Higher values make favourites more dominant.</small>
+            </label>
+
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function MonteCarloView({ simulationConfig, onBack }) {
+  const { GROUPS, GROUP_LETTERS, FIFA_RANKINGS, FIFA_POINTS = {} } = window.TEAMS_DATA;
+  const teams = useMemo(() => (
+    GROUP_LETTERS.flatMap(group =>
+      GROUPS[group].teams.map(name => ({
+        name,
+        group,
+        rank: FIFA_RANKINGS[name] ?? 999,
+        points: FIFA_POINTS[name] ?? null,
+      }))
+    ).sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.name.localeCompare(b.name);
+    })
+  ), []);
+  const initialWins = useMemo(() => Object.fromEntries(teams.map(team => [team.name, 0])), [teams]);
+  const [simulationCount, setSimulationCount] = useState(1000);
+  const [runsCompleted, setRunsCompleted] = useState(0);
+  const [wins, setWins] = useState(initialWins);
+  const [groupStageDraws, setGroupStageDraws] = useState(0);
+  const [running, setRunning] = useState(false);
+  const runTokenRef = useRef(0);
+
+  useEffect(() => {
+    setWins(initialWins);
+    setRunsCompleted(0);
+    setGroupStageDraws(0);
+    setRunning(false);
+  }, [initialWins]);
+
+  useEffect(() => () => { runTokenRef.current += 1; }, []);
+
+  const runMonteCarlo = () => {
+    const total = Math.max(1, Math.min(100000, parseInt(simulationCount, 10) || 1));
+    const nextWins = { ...initialWins };
+    let completed = 0;
+    let completedGroupStageDraws = 0;
+    const runToken = runTokenRef.current + 1;
+    runTokenRef.current = runToken;
+    setWins(nextWins);
+    setRunsCompleted(0);
+    setGroupStageDraws(0);
+    setRunning(true);
+
+    const runBatch = () => {
+      if (runTokenRef.current !== runToken) return;
+      const batchSize = Math.min(100, total - completed);
+      for (let i = 0; i < batchSize; i++) {
+        const preds = window.PREDICTIONS.simulateTournamentPredictions(simulationConfig);
+        const winner = window.PREDICTIONS.tournamentWinnerFromPredictions(preds);
+        if (winner && nextWins[winner] != null) nextWins[winner] += 1;
+        window.TEAMS_DATA.GROUP_MATCHES.forEach(match => {
+          const pred = preds[match.id];
+          if (pred && pred.s1 === pred.s2) completedGroupStageDraws += 1;
+        });
+        completed++;
+      }
+      setWins({ ...nextWins });
+      setRunsCompleted(completed);
+      setGroupStageDraws(completedGroupStageDraws);
+      if (completed < total) {
+        window.setTimeout(runBatch, 0);
+      } else {
+        setRunning(false);
+      }
+    };
+
+    window.setTimeout(runBatch, 0);
+  };
+
+  const formatFractionalOdds = (impliedDecimalOdds) => {
+    if (!impliedDecimalOdds || !Number.isFinite(impliedDecimalOdds)) return '-';
+    const profitOdds = Math.max(0, impliedDecimalOdds - 1);
+    return `${Math.max(1, Math.round(profitOdds))}/1`;
+  };
+
+  const rows = useMemo(() => teams.map(team => {
+    const teamWins = wins[team.name] || 0;
+    const probability = runsCompleted > 0 ? teamWins / runsCompleted : 0;
+    return {
+      ...team,
+      wins: teamWins,
+      probability,
+      odds: probability > 0 ? 1 / probability : null,
+    };
+  }).sort((a, b) => {
+    if (runsCompleted > 0 && b.probability !== a.probability) return b.probability - a.probability;
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return a.name.localeCompare(b.name);
+  }), [teams, wins, runsCompleted]);
+
+  return (
+    <div className="tab-pane scroll mc-view">
+      <div className="mc-shell">
+        <div className="sim-head">
+          <div>
+            <div className="sim-kicker">Monte Carlo</div>
+            <h1>Tournament win simulation</h1>
+          </div>
+          <div className="sim-actions">
+            <button className="sim-secondary-btn" onClick={onBack}>Back to Bracket</button>
+          </div>
+        </div>
+
+        <div className="mc-controls">
+          <label className="param-field">
+            <span>Number of simulations</span>
+            <input
+              type="number"
+              min="1"
+              max="100000"
+              step="100"
+              value={simulationCount}
+              onChange={(e) => setSimulationCount(e.target.value)}
+              disabled={running}
+            />
+          </label>
+          <button className="run-sim-btn" onClick={runMonteCarlo} disabled={running}>
+            {running ? 'Running...' : 'Run Monte Carlo Simulation'}
+          </button>
+          <div className="mc-metric">
+            <span>Average Group Stage Draws</span>
+            <b>{runsCompleted > 0 ? `${((groupStageDraws / (runsCompleted * window.TEAMS_DATA.GROUP_MATCHES.length)) * 100).toFixed(1)}%` : '-'}</b>
+          </div>
+          <div className="mc-progress">
+            <span>{runsCompleted.toLocaleString()}</span>
+            <b>/ {(parseInt(simulationCount, 10) || 0).toLocaleString()}</b>
+          </div>
+        </div>
+
+        <div className="mc-table-wrap">
+          <table className="mc-table">
+            <thead>
+              <tr>
+                <th className="rank">Rank</th>
+                <th className="team">Team</th>
+                <th>Group</th>
+                <th>Wins</th>
+                <th>Win probability</th>
+                <th>Implied odds</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(team => (
+                <tr key={team.name}>
+                  <td className="rank">#{team.rank}</td>
+                  <td className="team">{team.name}</td>
+                  <td>{team.group}</td>
+                  <td>{team.wins.toLocaleString()}</td>
+                  <td>{runsCompleted > 0 ? `${(team.probability * 100).toFixed(2)}%` : '-'}</td>
+                  <td>{formatFractionalOdds(team.odds)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const myTz = useMemo(() => {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return 'UTC'; }
@@ -754,6 +1158,7 @@ function App() {
   }, [theme]);
 
   const { preds, set: setPred, clear: clearPreds, simulateTournament } = window.PREDICTIONS.usePredictions();
+  const { config: simulationConfig, setConfig: setSimulationConfig, resetConfig: resetSimulationConfig } = window.PREDICTIONS.useSimulationConfig();
 
   // Compute group standings + KO resolutions once; share across all views
   const standings = useMemo(() => window.PREDICTIONS.computeAllStandings(preds), [preds]);
@@ -783,12 +1188,24 @@ function App() {
           ))}
         </nav>
 
-            <button
-              className="run-sim-btn"
-              onClick={simulateTournament}
-            >
-              Run Simulation
-            </button>
+        <button
+          className="build-sim-btn"
+          onClick={() => setTab('simulation')}
+        >
+          Build Simulation
+        </button>
+        <button
+          className="run-sim-btn"
+          onClick={() => simulateTournament(simulationConfig)}
+        >
+          Run Simulation
+        </button>
+        <button
+          className="build-sim-btn"
+          onClick={() => setTab('monteCarlo')}
+        >
+          Monte Carlo
+        </button>
 
         <TZPicker value={tzMode} onChange={setTzMode} myTz={myTz} />
         <ThemePicker value={theme} onChange={setTheme} />
@@ -830,6 +1247,24 @@ function App() {
       {tab === 'bracket' && (
         <BracketView preds={preds} setPred={setPred} tzMode={tzMode} myTz={myTz} zoom={zoom} setZoom={setZoom} resolutions={resolutions} />
       )}
+      {tab === 'simulation' && (
+        <SimulationBuilder
+          config={simulationConfig}
+          setConfig={setSimulationConfig}
+          resetConfig={resetSimulationConfig}
+          onRun={() => {
+            simulateTournament(simulationConfig);
+            setTab('bracket');
+          }}
+          onBack={() => setTab('bracket')}
+        />
+      )}
+      {tab === 'monteCarlo' && (
+        <MonteCarloView
+          simulationConfig={simulationConfig}
+          onBack={() => setTab('bracket')}
+        />
+      )}
       {tab === 'groups' && (
         <div className="tab-pane scroll">
           {React.createElement(window.GroupsView, { preds })}
@@ -842,7 +1277,7 @@ function App() {
       )}
       {tab === 'matches' && (
         <div className="tab-pane scroll">
-          {React.createElement(window.MatchesView, { preds, setPred, clearPreds, resolutions })}
+          {React.createElement(window.MatchesView, { preds, setPred, clearPreds, resolutions, tzMode, myTz })}
         </div>
       )}
     </div>

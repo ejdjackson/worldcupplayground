@@ -2,9 +2,21 @@
 // All client-side; lives in window.PREDICTIONS as React hooks + helpers.
 
 const PREDICTIONS_KEY = 'wc26-predictions-v1';
-const SIM_BASE_RATE = 2;
-const SIM_SENSITIVITY = 2;
-const SIM_ET_SCALE = 30 / 90;
+const SIM_CONFIG_KEY = 'wc26-simulation-config-v1';
+const DEFAULT_SIM_CONFIG = {
+  model: 'poisson',
+  poisson: {
+    ratingSource: 'fifaPoints',
+    baseRate: 2,
+    sensitivity: 2,
+    extraTimeScale: 30 / 90,
+  },
+  shotModel: {
+    defenseWeighting: 0.5,
+    shotSkillWeighting: 0.5,
+    goalkeeperWeighting: 0.5,
+  },
+};
 
 function loadPredictions() {
   try {
@@ -15,6 +27,44 @@ function loadPredictions() {
 
 function savePredictions(p) {
   try { localStorage.setItem(PREDICTIONS_KEY, JSON.stringify(p)); } catch (e) {}
+}
+
+function normalizeSimulationConfig(raw) {
+  const cfg = raw && typeof raw === 'object' ? raw : {};
+  const p = cfg.poisson && typeof cfg.poisson === 'object' ? cfg.poisson : {};
+  const s = cfg.shotModel && typeof cfg.shotModel === 'object' ? cfg.shotModel : {};
+  const num = (value, fallback, min, max) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  };
+  return {
+    model: ['coinFlip', 'shotModel'].includes(cfg.model) ? cfg.model : 'poisson',
+    poisson: {
+      ratingSource: p.ratingSource === 'fifaRankings' ? 'fifaRankings' : 'fifaPoints',
+      baseRate: num(p.baseRate, DEFAULT_SIM_CONFIG.poisson.baseRate, 0.2, 6),
+      sensitivity: num(p.sensitivity, DEFAULT_SIM_CONFIG.poisson.sensitivity, 0, 6),
+      extraTimeScale: num(p.extraTimeScale, DEFAULT_SIM_CONFIG.poisson.extraTimeScale, 0, 1),
+    },
+    shotModel: {
+      defenseWeighting: num(s.defenseWeighting, DEFAULT_SIM_CONFIG.shotModel.defenseWeighting, 0, 1),
+      shotSkillWeighting: num(s.shotSkillWeighting, DEFAULT_SIM_CONFIG.shotModel.shotSkillWeighting, 0, 1),
+      goalkeeperWeighting: num(s.goalkeeperWeighting, DEFAULT_SIM_CONFIG.shotModel.goalkeeperWeighting, 0, 1),
+    },
+  };
+}
+
+function loadSimulationConfig() {
+  try {
+    const raw = localStorage.getItem(SIM_CONFIG_KEY);
+    return normalizeSimulationConfig(raw ? JSON.parse(raw) : DEFAULT_SIM_CONFIG);
+  } catch (e) {
+    return normalizeSimulationConfig(DEFAULT_SIM_CONFIG);
+  }
+}
+
+function saveSimulationConfig(config) {
+  try { localStorage.setItem(SIM_CONFIG_KEY, JSON.stringify(normalizeSimulationConfig(config))); } catch (e) {}
 }
 
 function poissonSample(lambda) {
@@ -29,11 +79,25 @@ function poissonSample(lambda) {
   return k - 1;
 }
 
-function pointsForTeam(name) {
-  const points = window.TEAMS_DATA?.FIFA_POINTS?.[name];
-  if (points != null) return points;
+function binomialSample(trials, probability) {
+  if (!(trials > 0)) return 0;
+  const p = Math.max(0, Math.min(1, Number(probability) || 0));
+  let successes = 0;
+  for (let i = 0; i < trials; i++) {
+    if (Math.random() < p) successes++;
+  }
+  return successes;
+}
+
+function pointsForTeam(name, ratingSource = 'fifaPoints') {
+  if (ratingSource !== 'fifaRankings') {
+    const points = window.TEAMS_DATA?.FIFA_POINTS?.[name];
+    if (points != null) return points;
+  }
   const rank = window.TEAMS_DATA?.FIFA_RANKINGS?.[name];
   if (rank != null) return 1600 - rank * 5;
+  const points = window.TEAMS_DATA?.FIFA_POINTS?.[name];
+  if (points != null) return points;
   return 1500;
 }
 
@@ -51,20 +115,35 @@ function penaltyShootout() {
     : { p1: losePens, p2: winPens };
 }
 
-function simulateMatch(team1, team2, isKnockout) {
-  const pointsA = pointsForTeam(team1);
-  const pointsB = pointsForTeam(team2);
+function scorelineForWinner(team1Wins) {
+  const patterns = [
+    [1, 0],
+    [2, 1],
+    [2, 0],
+    [3, 1],
+  ];
+  const [winGoals, loseGoals] = patterns[Math.floor(Math.random() * patterns.length)];
+  return team1Wins ? { s1: winGoals, s2: loseGoals } : { s1: loseGoals, s2: winGoals };
+}
+
+function simulateCoinFlipMatch(team1, team2, isKnockout) {
+  return scorelineForWinner(Math.random() < 0.5);
+}
+
+function simulatePoissonMatch(team1, team2, isKnockout, config = DEFAULT_SIM_CONFIG.poisson) {
+  const pointsA = pointsForTeam(team1, config.ratingSource);
+  const pointsB = pointsForTeam(team2, config.ratingSource);
   const diff = (pointsA - pointsB) / 1000;
-  const lambdaA = SIM_BASE_RATE * Math.exp(SIM_SENSITIVITY * diff);
-  const lambdaB = SIM_BASE_RATE * Math.exp(-SIM_SENSITIVITY * diff);
+  const lambdaA = config.baseRate * Math.exp(config.sensitivity * diff);
+  const lambdaB = config.baseRate * Math.exp(-config.sensitivity * diff);
 
   let s1 = poissonSample(lambdaA);
   let s2 = poissonSample(lambdaB);
 
   if (isKnockout && s1 === s2) {
     const wentToExtraTime = true;
-    s1 += poissonSample(lambdaA * SIM_ET_SCALE);
-    s2 += poissonSample(lambdaB * SIM_ET_SCALE);
+    s1 += poissonSample(lambdaA * config.extraTimeScale);
+    s2 += poissonSample(lambdaB * config.extraTimeScale);
     if (s1 === s2) return { s1, s2, aet: wentToExtraTime, ...penaltyShootout() };
     return { s1, s2, aet: wentToExtraTime };
   }
@@ -72,13 +151,57 @@ function simulateMatch(team1, team2, isKnockout) {
   return { s1, s2 };
 }
 
-function simulateTournamentPredictions() {
+function shotModelRates(team, opponent, config = DEFAULT_SIM_CONFIG.shotModel, shotScale = 1) {
+  const attack = window.SHOT_MODEL_DATA.paramsFor(team);
+  const defense = window.SHOT_MODEL_DATA.paramsFor(opponent);
+  const defenseWeighting = config.defenseWeighting;
+  const shotSkillWeighting = config.shotSkillWeighting;
+  const goalkeeperWeighting = config.goalkeeperWeighting;
+  return {
+    lambdaShots: ((1 - defenseWeighting) * attack.team_shots_per_game + defenseWeighting * defense.opponent_shots_allowed) * shotScale,
+    accuracy: shotSkillWeighting * attack.team_accuracy + (1 - shotSkillWeighting) * defense.opponent_accuracy_allowed,
+    conversion: (1 - goalkeeperWeighting) * attack.team_conversion + goalkeeperWeighting * defense.opponent_conversion_allowed,
+  };
+}
+
+function simulateShotModelTeam(rates) {
+  const shots = poissonSample(rates.lambdaShots);
+  const shotsOnTarget = binomialSample(shots, rates.accuracy);
+  return binomialSample(shotsOnTarget, rates.conversion);
+}
+
+function simulateShotModelMatch(team1, team2, isKnockout, config = DEFAULT_SIM_CONFIG.shotModel) {
+  const rates1 = shotModelRates(team1, team2, config);
+  const rates2 = shotModelRates(team2, team1, config);
+  let s1 = simulateShotModelTeam(rates1);
+  let s2 = simulateShotModelTeam(rates2);
+
+  if (isKnockout && s1 === s2) {
+    const wentToExtraTime = true;
+    s1 += simulateShotModelTeam({ ...rates1, lambdaShots: rates1.lambdaShots * (30 / 90) });
+    s2 += simulateShotModelTeam({ ...rates2, lambdaShots: rates2.lambdaShots * (30 / 90) });
+    if (s1 === s2) return { s1, s2, aet: wentToExtraTime, ...penaltyShootout() };
+    return { s1, s2, aet: wentToExtraTime };
+  }
+
+  return { s1, s2 };
+}
+
+function simulateMatch(team1, team2, isKnockout, simulationConfig) {
+  const config = normalizeSimulationConfig(simulationConfig || loadSimulationConfig());
+  if (config.model === 'coinFlip') return simulateCoinFlipMatch(team1, team2, isKnockout);
+  if (config.model === 'shotModel') return simulateShotModelMatch(team1, team2, isKnockout, config.shotModel);
+  return simulatePoissonMatch(team1, team2, isKnockout, config.poisson);
+}
+
+function simulateTournamentPredictions(simulationConfig) {
+  const config = normalizeSimulationConfig(simulationConfig || loadSimulationConfig());
   const next = {};
   const { GROUP_MATCHES, GROUP_LETTERS } = window.TEAMS_DATA;
   const data = window.BRACKET;
 
   GROUP_MATCHES.forEach(m => {
-    next[m.id] = simulateMatch(m.team1, m.team2, false);
+    next[m.id] = simulateMatch(m.team1, m.team2, false, config);
   });
 
   const standings = computeAllStandings(next);
@@ -89,7 +212,7 @@ function simulateTournamentPredictions() {
     matches.forEach(m => {
       const fixture = resolved[m.id];
       if (!fixture?.team1 || !fixture?.team2) return;
-      next[m.id] = simulateMatch(fixture.team1, fixture.team2, true);
+      next[m.id] = simulateMatch(fixture.team1, fixture.team2, true, config);
     });
   }
 
@@ -102,6 +225,18 @@ function simulateTournamentPredictions() {
   // Sanity check: all groups must be completed for the R32 mapping to be stable.
   if (!GROUP_LETTERS.every(g => standings[g].allPlayed)) return next;
   return next;
+}
+
+function tournamentWinnerFromPredictions(preds) {
+  const standings = computeAllStandings(preds);
+  const thirds = rankThirdPlaced(standings);
+  const resolved = resolveAllKOTeams(preds, standings, thirds);
+  return resolved[window.BRACKET.FINAL.id]?.winner || null;
+}
+
+function simulateTournamentWinner(simulationConfig) {
+  const preds = simulateTournamentPredictions(simulationConfig);
+  return tournamentWinnerFromPredictions(preds);
 }
 
 // Hook: predictions state + setter. Each prediction is { s1, s2, p1?, p2? }.
@@ -161,12 +296,25 @@ function usePredictions() {
     savePredictions(next);
     setPreds(next);
   }, []);
-  const simulateTournament = React.useCallback(() => {
-    const next = simulateTournamentPredictions();
+  const simulateTournament = React.useCallback((simulationConfig) => {
+    const next = simulateTournamentPredictions(simulationConfig);
     savePredictions(next);
     setPreds(next);
   }, []);
   return { preds, set, clear, fillRandom, simulateTournament };
+}
+
+function useSimulationConfig() {
+  const [config, setConfigState] = React.useState(loadSimulationConfig);
+  const setConfig = React.useCallback((updater) => {
+    setConfigState(prev => {
+      const next = normalizeSimulationConfig(typeof updater === 'function' ? updater(prev) : updater);
+      saveSimulationConfig(next);
+      return next;
+    });
+  }, []);
+  const resetConfig = React.useCallback(() => setConfig(DEFAULT_SIM_CONFIG), [setConfig]);
+  return { config, setConfig, resetConfig };
 }
 
 // Compute standings for one group, given { matchId: { s1, s2 } } predictions.
@@ -348,8 +496,13 @@ function resolveAllKOTeams(preds, standings, thirdRanks) {
 
 window.PREDICTIONS = {
   usePredictions,
+  useSimulationConfig,
+  DEFAULT_SIM_CONFIG,
+  normalizeSimulationConfig,
   simulateMatch,
   simulateTournamentPredictions,
+  simulateTournamentWinner,
+  tournamentWinnerFromPredictions,
   computeGroupStandings,
   computeAllStandings,
   rankThirdPlaced,
