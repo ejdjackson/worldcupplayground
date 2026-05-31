@@ -1,5 +1,6 @@
-// Three-stage shot model inputs from world_cup_2026_top_50_team_averages.csv.
-// Dataset: last 10 games against FIFA top 50 teams.
+// Three-stage shot model inputs.
+// Primary source: SHOT_MODEL_MATCHES (raw match data, filtered by maxOppRank at runtime).
+// Fallback for teams absent from match data: hardcoded SHOT_MODEL_RAW below.
 // Values are keyed by source team name; aliases below map app team names where needed.
 
 const SHOT_MODEL_RAW = {
@@ -82,16 +83,72 @@ function validateShotModelRow(team, row) {
   return row;
 }
 
+// Compute params from raw match data, filtered to opponents with rank <= maxOppRank.
+// Pass maxOppRank=0 or null to include all opponents.
+function computeParamsFromMatches(team, maxOppRank) {
+  const key = SHOT_MODEL_ALIASES[team] || team;
+  const allMatches = window.SHOT_MODEL_MATCHES && window.SHOT_MODEL_MATCHES[key];
+  if (!allMatches || allMatches.length === 0) return null;
+  const filtered = (maxOppRank && maxOppRank > 0)
+    ? allMatches.filter(m => m.opp_rank != null && m.opp_rank <= maxOppRank)
+    : allMatches;
+  if (filtered.length === 0) return null;
+  let totShots = 0, totOT = 0, totGoals = 0, totOppShots = 0, totOppOT = 0, totOppGoals = 0;
+  for (const m of filtered) {
+    totShots += m.shots || 0;
+    totOT += m.on_target || 0;
+    totGoals += m.goals || 0;
+    totOppShots += m.opp_shots || 0;
+    totOppOT += m.opp_on_target || 0;
+    totOppGoals += m.opp_goals || 0;
+  }
+  if (totShots === 0 || totOT === 0 || totOppShots === 0 || totOppOT === 0) return null;
+  const r = (n, d, p) => Math.round(n / d * Math.pow(10, p)) / Math.pow(10, p);
+  return {
+    team_shots_per_game: r(totShots, filtered.length, 1),
+    team_accuracy: r(totOT, totShots, 3),
+    team_conversion: r(totGoals, totOT, 3),
+    opponent_shots_allowed: r(totOppShots, filtered.length, 1),
+    opponent_accuracy_allowed: r(totOppOT, totOppShots, 3),
+    opponent_conversion_allowed: r(totOppGoals, totOppOT, 3),
+  };
+}
+
+function matchCountFor(team, maxOppRank) {
+  const key = SHOT_MODEL_ALIASES[team] || team;
+  const allMatches = window.SHOT_MODEL_MATCHES && window.SHOT_MODEL_MATCHES[key];
+  if (!allMatches) return 0;
+  if (!maxOppRank || maxOppRank <= 0) return allMatches.length;
+  return allMatches.filter(m => m.opp_rank != null && m.opp_rank <= maxOppRank).length;
+}
+
 const SHOT_MODEL_GLOBAL_AVERAGES = SHOT_MODEL_FIELDS.reduce((acc, field) => {
   const rows = Object.values(SHOT_MODEL_RAW);
   acc[field] = rows.reduce((sum, row) => sum + row[field], 0) / rows.length;
   return acc;
 }, {});
 
-function shotModelParamsFor(team) {
+function computeGlobalAverages(maxOppRank) {
+  if (!window.SHOT_MODEL_MATCHES) return SHOT_MODEL_GLOBAL_AVERAGES;
+  const rows = Object.keys(window.SHOT_MODEL_MATCHES)
+    .map(t => computeParamsFromMatches(t, maxOppRank))
+    .filter(Boolean);
+  if (rows.length === 0) return SHOT_MODEL_GLOBAL_AVERAGES;
+  return SHOT_MODEL_FIELDS.reduce((acc, field) => {
+    acc[field] = rows.reduce((s, r) => s + r[field], 0) / rows.length;
+    return acc;
+  }, {});
+}
+
+function shotModelParamsFor(team, maxOppRank) {
   const key = SHOT_MODEL_ALIASES[team] || team;
-  const row = SHOT_MODEL_RAW[key] || SHOT_MODEL_GLOBAL_AVERAGES;
-  return validateShotModelRow(team, row);
+  const computed = computeParamsFromMatches(team, maxOppRank);
+  if (computed) return validateShotModelRow(team, computed);
+  if (SHOT_MODEL_RAW[key]) return validateShotModelRow(team, SHOT_MODEL_RAW[key]);
+  const globalAvg = (maxOppRank != null && maxOppRank > 0)
+    ? computeGlobalAverages(maxOppRank)
+    : SHOT_MODEL_GLOBAL_AVERAGES;
+  return validateShotModelRow(team, globalAvg);
 }
 
 window.SHOT_MODEL_DATA = {
@@ -99,4 +156,6 @@ window.SHOT_MODEL_DATA = {
   aliases: SHOT_MODEL_ALIASES,
   globalAverages: SHOT_MODEL_GLOBAL_AVERAGES,
   paramsFor: shotModelParamsFor,
+  matchCountFor,
+  computeGlobalAverages,
 };

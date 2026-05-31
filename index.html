@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
   :root, [data-theme="midnight"] {
     --bg: #0b1020;
@@ -839,6 +841,54 @@
       var(--bg);
   }
   .tab-pane.scroll { padding: 28px 32px 60px; }
+  .tab-pane.map-pane { overflow: hidden; padding: 0; }
+  .map-container { width: 100%; height: 100%; }
+
+  /* Leaflet popup — dark theme override */
+  .leaflet-popup-content-wrapper {
+    background: var(--panel);
+    border: 1px solid var(--line-2);
+    color: var(--ink);
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    padding: 0;
+  }
+  .leaflet-popup-content { margin: 0; }
+  .leaflet-popup-tip { background: var(--panel); }
+  .leaflet-popup-close-button { color: var(--ink-mute) !important; top: 8px !important; right: 10px !important; }
+  .leaflet-popup-close-button:hover { color: var(--ink) !important; }
+  .mp-popup { min-width: 260px; max-width: 310px; }
+  .mp-header { padding: 12px 32px 10px 14px; border-bottom: 1px solid var(--line); }
+  .mp-header strong { display: block; font-family: "Space Grotesk", sans-serif; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .mp-header span { font-size: 11px; color: var(--ink-mute); }
+  .mp-matches { padding: 6px 0; max-height: 320px; overflow-y: auto; }
+  .mp-match { padding: 7px 14px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+  .mp-match:last-child { border-bottom: none; }
+  .mp-match-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+  .mp-match-date { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-mute); }
+  .mp-match-stage { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--amber); }
+  .mp-match-teams { font-size: 12px; font-weight: 500; color: var(--ink); }
+  .mp-vs { color: var(--ink-mute); font-size: 11px; margin: 0 4px; }
+  .leaflet-container { font-family: "Space Grotesk", sans-serif; background: var(--bg); }
+
+  /* Historical finals popup rows */
+  .mp-hist-final { padding: 7px 14px; display: flex; gap: 12px; align-items: flex-start; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+  .mp-hist-final:last-child { border-bottom: none; }
+  .mp-hist-year { font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 600; color: #60a5fa; min-width: 38px; }
+  .mp-hist-detail { display: flex; flex-direction: column; gap: 2px; }
+  .mp-hist-date { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-mute); }
+  .mp-hist-result { font-size: 12px; font-weight: 500; color: var(--ink); }
+
+  /* Map legend */
+  .map-legend {
+    position: absolute; bottom: 28px; left: 12px; z-index: 1000;
+    background: var(--panel); border: 1px solid var(--line-2);
+    border-radius: 6px; padding: 7px 12px;
+    font-size: 12px; color: var(--ink-dim);
+    display: flex; align-items: center; gap: 6px;
+    pointer-events: none;
+  }
+  .map-legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
 
   /* ---------- Simulation builder ---------- */
   .sim-builder {
@@ -1020,7 +1070,7 @@
     background: var(--bg);
   }
   .shot-weight-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin-bottom: 18px;
   }
   .shot-table {
@@ -1333,6 +1383,64 @@
     border-left: 3px solid transparent;
     padding-left: 11px;
   }
+
+  /* ---------- History view ---------- */
+  .hv-wrap { max-width: 820px; margin: 0 auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 40px; }
+  .hv-section-title {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 0 0 16px 0;
+  }
+  .hv-leaderboard { display: flex; flex-direction: column; gap: 2px; }
+  .hv-lb-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 36px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .hv-lb-row:first-child { border-color: var(--amber); }
+  .hv-lb-rank { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--ink-mute); text-align: right; }
+  .hv-lb-country { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .hv-lb-wins {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--amber);
+    text-align: center;
+  }
+  .hv-lb-years { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-mute); }
+  .hv-table-wrap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
+  .hv-table { width: 100%; border-collapse: collapse; }
+  .hv-table th {
+    background: var(--panel);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  .hv-table td { padding: 11px 14px; font-size: 13px; color: var(--ink-dim); border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+  .hv-table tbody tr:last-child td { border-bottom: none; }
+  .hv-table tbody tr:hover td { background: color-mix(in srgb, var(--panel) 60%, transparent); }
+  .hv-year { font-family: "JetBrains Mono", monospace; font-weight: 600; color: var(--ink); white-space: nowrap; }
+  .hv-host { color: var(--ink-mute); font-size: 12px; }
+  .hv-winner { font-weight: 600; color: var(--amber); }
+  .hv-winner-col { min-width: 130px; }
+  .hv-score { white-space: nowrap; }
+  .hv-score-main { font-family: "JetBrains Mono", monospace; font-size: 13px; }
+  .hv-score-pens { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-mute); display: block; }
+  .hv-runner { color: var(--ink-dim); }
+  .hv-footnote { font-size: 11px; color: var(--ink-mute); margin: 10px 0 0 0; }
 
   /* ---------- Teams view ---------- */
   .teams-view { max-width: 980px; margin: 0 auto; }
@@ -1822,6 +1930,7 @@
   .mr-md { color: var(--ink-mute); }
   .mr-time { color: var(--ink-dim); margin-left: auto; }
   .mr-venue { color: var(--ink-mute); }
+  .mr-temp { color: var(--ink-mute); font-family: "JetBrains Mono", monospace; font-size: 10px; }
 
   .mr-fixture {
     display: grid;
@@ -1834,12 +1943,70 @@
     font-size: 14px;
     font-weight: 500;
     color: var(--ink);
+    position: relative;
   }
   .mr-team.mr-t1 { text-align: right; }
   .mr-team.mr-t2 { text-align: left; }
   .mr-team.won { color: var(--amber); font-weight: 600; }
   .mr-team.lost { color: var(--ink-mute); }
   .mr-team.drew { color: var(--ink-dim); }
+  .mr-team.has-history { cursor: default; }
+
+  .tht {
+    position: absolute;
+    top: calc(100% + 6px);
+    background: var(--bg-2);
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    z-index: 200;
+    min-width: 220px;
+    pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+  .tht-t1 { right: 0; }
+  .tht-t2 { left: 0; }
+  .tht-title {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 8px;
+  }
+  .tht-table { border-collapse: collapse; width: 100%; }
+  .tht-table tr + tr td { padding-top: 4px; }
+  .tht-rank {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-mute);
+    padding-right: 8px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .tht-opp {
+    font-size: 13px;
+    color: var(--ink);
+    padding-right: 10px;
+  }
+  .tht-result {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    font-weight: 600;
+    width: 18px;
+    text-align: center;
+    padding-right: 10px;
+  }
+  .tht-w { color: var(--green); }
+  .tht-l { color: var(--rose); }
+  .tht-d { color: var(--ink-mute); }
+  .tht-score {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    text-align: right;
+  }
 
   .mr-score { display: flex; align-items: center; gap: 4px; }
   .mr-score input {
@@ -1892,14 +2059,17 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-<script src="bracket-data.js?v=20260515-0935"></script>
-<script src="teams-data.js?v=20260515-1401"></script>
+<script src="bracket-data.js?v=20260526"></script>
+<script src="teams-data.js?v=20260526"></script>
 <script src="player-elo-ratings.js?v=20260515-0935"></script>
-<script src="shot-model-data.js?v=20260516-0020"></script>
-<script type="text/babel" src="predictions.js?v=20260515-1110"></script>
-<script type="text/babel" src="groups-view.jsx?v=20260515-1425"></script>
+<script src="shot-model-matches.js?v=20260526b"></script>
+<script src="shot-model-data.js?v=20260526"></script>
+<script type="text/babel" src="predictions.js?v=20260526"></script>
+<script type="text/babel" src="groups-view.jsx?v=20260526c"></script>
+<script type="text/babel" src="history-view.jsx?v=20260526"></script>
+<script type="text/babel" src="map-view.jsx?v=20260526d"></script>
 <script type="text/babel" src="teams-view.jsx?v=20260515-1412"></script>
-<script type="text/babel" src="matches-view.jsx?v=20260516-0030"></script>
-<script type="text/babel" src="bracket-app.jsx?v=20260516-0030"></script>
+<script type="text/babel" src="matches-view.jsx?v=20260526d"></script>
+<script type="text/babel" src="bracket-app.jsx?v=20260526c"></script>
 </body>
 </html>

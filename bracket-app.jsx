@@ -728,6 +728,8 @@ const TABS = [
   { id: 'matches', label: 'Matches' },
   { id: 'groups', label: 'Groups' },
   { id: 'bracket', label: 'Bracket' },
+  { id: 'history', label: 'History' },
+  { id: 'map', label: 'Map' },
 ];
 
 function SimulationBuilder({ config, setConfig, resetConfig, onRun, onBack }) {
@@ -775,13 +777,20 @@ function SimulationBuilder({ config, setConfig, resetConfig, onRun, onBack }) {
   const shotRows = useMemo(() => {
     if (!window.SHOT_MODEL_DATA) return [];
     const { GROUPS, GROUP_LETTERS } = window.TEAMS_DATA;
+    const maxOppRank = (shotModel.maxOppRank && shotModel.maxOppRank > 0) ? shotModel.maxOppRank : null;
     const rows = GROUP_LETTERS.flatMap(group =>
       GROUPS[group].teams.map(name => {
         const alias = window.SHOT_MODEL_DATA.aliases[name];
         const sourceName = alias || name;
-        const isFallback = !window.SHOT_MODEL_DATA.rows[sourceName];
-        const params = window.SHOT_MODEL_DATA.paramsFor(name);
-        return { name, group, sourceName, source: 'Last 10 vs FIFA top 50', isFallback, ...params };
+        const n = window.SHOT_MODEL_DATA.matchCountFor(sourceName, maxOppRank);
+        const isFallback = n === 0;
+        const params = window.SHOT_MODEL_DATA.paramsFor(name, maxOppRank);
+        const source = isFallback
+          ? 'Pre-computed (fallback)'
+          : maxOppRank
+            ? `n=${n}, rank ≤${maxOppRank}`
+            : `n=${n}, all opponents`;
+        return { name, group, sourceName, source, isFallback, ...params };
       })
     );
     const col = shotColumns.find(column => column.key === shotSort.key) || shotColumns[0];
@@ -796,7 +805,7 @@ function SimulationBuilder({ config, setConfig, resetConfig, onRun, onBack }) {
       return shotSort.dir === 'asc' ? result : -result;
     });
     return rows;
-  }, [shotSort]);
+  }, [shotSort, shotModel.maxOppRank]);
 
   return (
     <div className="tab-pane scroll sim-builder">
@@ -845,6 +854,18 @@ function SimulationBuilder({ config, setConfig, resetConfig, onRun, onBack }) {
               </div>
             </div>
             <div className="param-grid shot-weight-grid">
+              <label className="param-field">
+                <span>Max opponent rank</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="210"
+                  step="5"
+                  value={shotModel.maxOppRank}
+                  onChange={(e) => updateShotModel('maxOppRank', e.target.value)}
+                />
+                <small>Only include matches vs. teams ranked ≤ this. 0 = all opponents. Default 50.</small>
+              </label>
               <label className="param-field">
                 <span>Defense weighting</span>
                 <input
@@ -1278,6 +1299,16 @@ function App() {
       {tab === 'matches' && (
         <div className="tab-pane scroll">
           {React.createElement(window.MatchesView, { preds, setPred, clearPreds, resolutions, tzMode, myTz })}
+        </div>
+      )}
+      {tab === 'history' && (
+        <div className="tab-pane scroll">
+          {React.createElement(window.HistoryView)}
+        </div>
+      )}
+      {tab === 'map' && (
+        <div className="tab-pane map-pane">
+          {React.createElement(window.MapView)}
         </div>
       )}
     </div>

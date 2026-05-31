@@ -1,5 +1,59 @@
 // Groups view — 12 group tables auto-computed from predictions
-const { useMemo: useMemoG } = React;
+const { useMemo: useMemoG, useState: useStateG } = React;
+
+function getTeamHistoryG(teamName) {
+  if (!window.SHOT_MODEL_MATCHES || !teamName) return null;
+  const KEY_MAP = {
+    "Côte d'Ivoire": 'Ivory Coast',
+    "Cote d'Ivoire": 'Ivory Coast',
+    'Türkiye': 'Turkey',
+    'United States': 'USA',
+  };
+  const key = KEY_MAP[teamName] || teamName;
+  return window.SHOT_MODEL_MATCHES[key] || null;
+}
+
+function TeamHistoryTooltipG({ teamName, pos }) {
+  const history = getTeamHistoryG(teamName);
+  if (!history || history.length === 0) return null;
+  return ReactDOM.createPortal(
+    <div className="tht" style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}>
+      <div className="tht-title">{teamName}</div>
+      <table className="tht-table">
+        <tbody>
+          {history.slice(0, 8).map((m, i) => (
+            <tr key={i}>
+              <td className="tht-rank">{m.opp_rank != null ? `#${m.opp_rank}` : '—'}</td>
+              <td className="tht-opp">{m.opponent}</td>
+              <td className={`tht-result tht-${m.result.toLowerCase()}`}>{m.result}</td>
+              <td className="tht-score">{m.goals}–{m.opp_goals}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>,
+    document.body
+  );
+}
+
+function TeamNameG({ name }) {
+  const [pos, setPos] = useStateG(null);
+  const hasHistory = !!getTeamHistoryG(name);
+  return (
+    <span
+      className={hasHistory ? 'has-history' : ''}
+      onMouseEnter={e => {
+        if (!hasHistory) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        setPos({ top: r.bottom + 6, left: r.left });
+      }}
+      onMouseLeave={() => setPos(null)}
+    >
+      {name}
+      {pos && <TeamHistoryTooltipG teamName={name} pos={pos} />}
+    </span>
+  );
+}
 
 function GroupsView({ preds }) {
   const { GROUPS, GROUP_LETTERS } = window.TEAMS_DATA;
@@ -51,7 +105,7 @@ function GroupTable({ letter, standings }) {
             return (
               <tr key={r.name} className={`tier-${tier}`}>
                 <td className="num">{i + 1}</td>
-                <td className="team">{r.name}</td>
+                <td className="team"><TeamNameG name={r.name} /></td>
                 <td>{r.P}</td>
                 <td>{r.W}</td>
                 <td>{r.D}</td>

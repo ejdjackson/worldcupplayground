@@ -15,6 +15,7 @@ const DEFAULT_SIM_CONFIG = {
     defenseWeighting: 0.5,
     shotSkillWeighting: 0.5,
     goalkeeperWeighting: 0.5,
+    maxOppRank: 50,
   },
 };
 
@@ -50,6 +51,7 @@ function normalizeSimulationConfig(raw) {
       defenseWeighting: num(s.defenseWeighting, DEFAULT_SIM_CONFIG.shotModel.defenseWeighting, 0, 1),
       shotSkillWeighting: num(s.shotSkillWeighting, DEFAULT_SIM_CONFIG.shotModel.shotSkillWeighting, 0, 1),
       goalkeeperWeighting: num(s.goalkeeperWeighting, DEFAULT_SIM_CONFIG.shotModel.goalkeeperWeighting, 0, 1),
+      maxOppRank: num(s.maxOppRank, DEFAULT_SIM_CONFIG.shotModel.maxOppRank, 0, 210),
     },
   };
 }
@@ -152,8 +154,9 @@ function simulatePoissonMatch(team1, team2, isKnockout, config = DEFAULT_SIM_CON
 }
 
 function shotModelRates(team, opponent, config = DEFAULT_SIM_CONFIG.shotModel, shotScale = 1) {
-  const attack = window.SHOT_MODEL_DATA.paramsFor(team);
-  const defense = window.SHOT_MODEL_DATA.paramsFor(opponent);
+  const maxOppRank = (config.maxOppRank && config.maxOppRank > 0) ? config.maxOppRank : null;
+  const attack = window.SHOT_MODEL_DATA.paramsFor(team, maxOppRank);
+  const defense = window.SHOT_MODEL_DATA.paramsFor(opponent, maxOppRank);
   const defenseWeighting = config.defenseWeighting;
   const shotSkillWeighting = config.shotSkillWeighting;
   const goalkeeperWeighting = config.goalkeeperWeighting;

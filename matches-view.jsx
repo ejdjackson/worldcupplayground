@@ -1,6 +1,56 @@
 // Matches view — score inputs for group + knockout matches
 const { useMemo: useMemoM, useState: useStateM } = React;
 
+function getTeamHistory(teamName) {
+  if (!window.SHOT_MODEL_MATCHES || !teamName) return null;
+  const KEY_MAP = {
+    "Côte d'Ivoire": 'Ivory Coast',
+    "Cote d'Ivoire": 'Ivory Coast',
+    'Türkiye': 'Turkey',
+    'United States': 'USA',
+  };
+  const key = KEY_MAP[teamName] || teamName;
+  return window.SHOT_MODEL_MATCHES[key] || null;
+}
+
+function TeamHistoryTooltip({ teamName, side }) {
+  const history = getTeamHistory(teamName);
+  if (!history || history.length === 0) return null;
+  return (
+    <div className={`tht tht-${side}`}>
+      <div className="tht-title">{teamName}</div>
+      <table className="tht-table">
+        <tbody>
+          {history.slice(0, 8).map((m, i) => (
+            <tr key={i}>
+              <td className="tht-rank">{m.opp_rank != null ? `#${m.opp_rank}` : '—'}</td>
+              <td className="tht-opp">{m.opponent}</td>
+              <td className={`tht-result tht-${m.result.toLowerCase()}`}>{m.result}</td>
+              <td className="tht-score">{m.goals}–{m.opp_goals}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TeamName({ name, className, side }) {
+  const [hovered, setHovered] = useStateM(false);
+  const hasHistory = !!getTeamHistory(name);
+  return (
+    <span
+      className={`${className}${hasHistory ? ' has-history' : ''}`}
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {name}
+      {hovered && hasHistory && <TeamHistoryTooltip teamName={name} side={side} />}
+    </span>
+  );
+}
+
 function MatchesView({ preds, setPred, clearPreds, resolutions, tzMode = 'venue', myTz = 'UTC' }) {
   const { GROUP_MATCHES } = window.TEAMS_DATA;
   const data = window.BRACKET;
@@ -170,6 +220,8 @@ function MatchRow({ m, pred, setPred, resolution, tzMode, myTz }) {
   const isKO = m.isKO;
   const stageLabel = m.stage;
   const kickoff = window.WC_TIME?.fmtKickoff ? window.WC_TIME.fmtKickoff(m, tzMode, myTz) : { date: m.date, time: m.time };
+  const month = typeof m.date === 'string' && m.date.includes('Jul') ? 7 : 6;
+  const temp = window.VENUE_TEMPS?.venueExpectedTemp(m.venue, month, m.time);
 
   const koPlaceholderName = (side) => {
     // Show parent slot description for an unresolved KO match
@@ -193,11 +245,13 @@ function MatchRow({ m, pred, setPred, resolution, tzMode, myTz }) {
         {!isKO && <span className="mr-md">MD{m.matchday}</span>}
         <span className="mr-time">{kickoff.time}</span>
         <span className="mr-venue">{m.venue}</span>
+        {temp && <span className="mr-temp">{temp.c}°C / {temp.f}°F</span>}
       </div>
       <div className="mr-fixture">
-        <span className={`mr-team mr-t1 ${winner === 1 ? 'won' : winner === 0 ? 'drew' : winner === 2 ? 'lost' : ''} ${!team1Name ? 'placeholder' : ''}`}>
-          {team1Name || koPlaceholderName(1)}
-        </span>
+        {team1Name
+          ? <TeamName name={team1Name} side="t1" className={`mr-team mr-t1 ${winner === 1 ? 'won' : winner === 0 ? 'drew' : winner === 2 ? 'lost' : ''}`} />
+          : <span className="mr-team mr-t1 placeholder">{koPlaceholderName(1)}</span>
+        }
         <div className="mr-score">
           <input
             type="number"
@@ -221,9 +275,10 @@ function MatchRow({ m, pred, setPred, resolution, tzMode, myTz }) {
             disabled={!teamsKnown}
           />
         </div>
-        <span className={`mr-team mr-t2 ${winner === 2 ? 'won' : winner === 0 ? 'drew' : winner === 1 ? 'lost' : ''} ${!team2Name ? 'placeholder' : ''}`}>
-          {team2Name || koPlaceholderName(2)}
-        </span>
+        {team2Name
+          ? <TeamName name={team2Name} side="t2" className={`mr-team mr-t2 ${winner === 2 ? 'won' : winner === 0 ? 'drew' : winner === 1 ? 'lost' : ''}`} />
+          : <span className="mr-team mr-t2 placeholder">{koPlaceholderName(2)}</span>
+        }
       </div>
 
       {isKO && filled && pred.aet && !isDraw && (

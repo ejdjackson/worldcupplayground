@@ -93,3 +93,40 @@ const FINAL = {
 };
 
 window.BRACKET = { R32, R16, QF, SF, TP, FINAL, VENUES };
+
+// Average daily high / low (°C) for June and July at each venue city.
+// San Francisco figures are for Santa Clara (Levi's Stadium location, warmer than SF proper).
+const VENUE_CLIMATE = {
+  'Atlanta':       { jun: { hi: 31, lo: 21 }, jul: { hi: 32, lo: 22 } },
+  'Boston':        { jun: { hi: 24, lo: 15 }, jul: { hi: 28, lo: 18 } },
+  'Dallas':        { jun: { hi: 34, lo: 23 }, jul: { hi: 37, lo: 25 } },
+  'Houston':       { jun: { hi: 33, lo: 23 }, jul: { hi: 35, lo: 24 } },
+  'Kansas City':   { jun: { hi: 29, lo: 18 }, jul: { hi: 33, lo: 22 } },
+  'Los Angeles':   { jun: { hi: 24, lo: 16 }, jul: { hi: 28, lo: 18 } },
+  'Miami':         { jun: { hi: 33, lo: 24 }, jul: { hi: 33, lo: 26 } },
+  'New York / NJ': { jun: { hi: 27, lo: 17 }, jul: { hi: 30, lo: 20 } },
+  'Philadelphia':  { jun: { hi: 28, lo: 17 }, jul: { hi: 31, lo: 21 } },
+  'Seattle':       { jun: { hi: 20, lo: 12 }, jul: { hi: 25, lo: 14 } },
+  'San Francisco': { jun: { hi: 25, lo: 12 }, jul: { hi: 27, lo: 13 } },
+  'Toronto':       { jun: { hi: 24, lo: 14 }, jul: { hi: 27, lo: 17 } },
+  'Vancouver':     { jun: { hi: 21, lo: 11 }, jul: { hi: 24, lo: 13 } },
+  'Guadalajara':   { jun: { hi: 28, lo: 14 }, jul: { hi: 26, lo: 14 } },
+  'Mexico City':   { jun: { hi: 23, lo: 11 }, jul: { hi: 22, lo: 12 } },
+  'Monterrey':     { jun: { hi: 37, lo: 23 }, jul: { hi: 37, lo: 22 } },
+};
+
+// Sinusoidal diurnal model: peak at 14:00 local, trough at 02:00 local.
+// month: 6 = June, 7 = July. kickoffTime: "HH:MM" local venue time.
+function venueExpectedTemp(venue, month, kickoffTime) {
+  const climate = VENUE_CLIMATE[venue];
+  if (!climate || !kickoffTime) return null;
+  const c = month === 7 ? climate.jul : climate.jun;
+  const hour = parseInt(kickoffTime, 10);
+  const avg = (c.hi + c.lo) / 2;
+  const amp = (c.hi - c.lo) / 2;
+  const tempC = Math.round(avg + amp * Math.cos(Math.PI * (hour - 14) / 12));
+  const tempF = Math.round(tempC * 9 / 5 + 32);
+  return { c: tempC, f: tempF };
+}
+
+window.VENUE_TEMPS = { venueExpectedTemp };
