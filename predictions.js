@@ -335,7 +335,8 @@ function computeGroupStandings(groupLetter, preds) {
     const p = preds[m.id];
     if (!p || p.s1 == null || p.s2 == null) return;
     playedCount++;
-    const a = rows[m.team1Idx], b = rows[m.team2Idx];
+    const a = rows.find(r => r.name === m.team1), b = rows.find(r => r.name === m.team2);
+    if (!a || !b) return;
     a.P++; b.P++;
     a.GF += p.s1; a.GA += p.s2;
     b.GF += p.s2; b.GA += p.s1;
