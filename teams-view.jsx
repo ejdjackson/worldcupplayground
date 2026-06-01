@@ -18,6 +18,24 @@ function plainTextFromHtml(html) {
   return div.textContent.replace(/\s+/g, ' ').trim();
 }
 
+function extractAge(cellHtml) {
+  if (!cellHtml) return null;
+  const text = plainTextFromHtml(cellHtml);
+  // Primary: ISO date e.g. "2000-05-17" → calculate exact age
+  const iso = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const born = new Date(+iso[1], +iso[2] - 1, +iso[3]);
+    const now = new Date();
+    const age = now.getFullYear() - born.getFullYear()
+      - (now < new Date(now.getFullYear(), born.getMonth(), born.getDate()) ? 1 : 0);
+    if (age >= 14 && age <= 50) return age;
+  }
+  // Fallback: "aged N" text
+  const m = text.match(/aged\s+(\d{1,2})/i);
+  if (m) { const n = +m[1]; if (n >= 14 && n <= 50) return n; }
+  return null;
+}
+
 function parseSquads(html) {
   const root = document.createElement('div');
   root.innerHTML = html;
@@ -46,6 +64,7 @@ function parseSquads(html) {
       return {
         pos: plainTextFromHtml(cells[1]?.innerHTML || '').replace(/^\d+\s*/, ''),
         name: plainTextFromHtml(cells[2]?.innerHTML || ''),
+        age: extractAge(cells[3]?.innerHTML || ''),
         club: plainTextFromHtml(cells[6]?.innerHTML || ''),
       };
     }).filter(player => player.name);
@@ -166,6 +185,7 @@ function TeamsView() {
               >
                 <td className="rank">#{team.rank}</td>
                 <td className="team">
+                  {window.TEAMS_DATA.flagUrl(team.name) && <img src={window.TEAMS_DATA.flagUrl(team.name)} alt={team.name} className="team-flag" onError={e => { e.target.style.display = 'none'; }} />}
                   <span className="team-name">{team.name}</span>
                 </td>
                 <td className="points">{team.points != null ? Math.round(team.points) : '-'}</td>
@@ -185,7 +205,10 @@ function TeamsView() {
         >
           <div className="tv-squad-head">
             <div>
-              <div className="tv-squad-team">{hoveredTeam.name}</div>
+              <div className="tv-squad-team">
+                {window.TEAMS_DATA.flagUrl(hoveredTeam.name) && <img src={window.TEAMS_DATA.flagUrl(hoveredTeam.name, 28)} alt={hoveredTeam.name} className="team-flag" onError={e => { e.target.style.display = 'none'; }} />}
+                {hoveredTeam.name}
+              </div>
               <div className="tv-squad-sub">Group {hoveredTeam.group} · Rank #{hoveredTeam.rank}</div>
             </div>
             <div className="tv-squad-count">{activeSquad.length || '-'}</div>
@@ -206,6 +229,7 @@ function TeamsView() {
                 <div className="tv-squad-player" key={`${player.name}-${index}`}>
                   <span className="tv-squad-pos">{player.pos || '-'}</span>
                   <span className="tv-squad-name">{player.name}</span>
+                  <span className="tv-squad-age">{player.age ?? '-'}</span>
                   <span className="tv-squad-elo">{eloForPlayer(hoveredTeam.name, player.name) ?? '-'}</span>
                   <span className="tv-squad-club">{player.club}</span>
                 </div>

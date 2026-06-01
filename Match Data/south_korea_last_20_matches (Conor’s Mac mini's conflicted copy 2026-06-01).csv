@@ -1,0 +1,12 @@
+Date,Opponent,Friendly? (Y or N),Rank,"Result (W, L or D)",Shots,On Target,Goals,Opp. Shots,Opp. On Target,Opp. Goals,Source of Data
+31/03/2026,Austria,Y,24,L,11,2,0,5,1,1,"FootyStats: Austria vs South Korea, 31 Mar 2026"
+28/03/2026,Ivory Coast,Y,34,L,12,2,0,13,8,4,"FootyStats: South Korea vs Ivory Coast, 28 Mar 2026"
+18/11/2025,Ghana,Y,74,W,7,4,1,12,1,0,FotMob/FootyStats result page; shot stats not exposed in accessible snippet
+14/11/2025,Bolivia,Y,76,W,12,5,2,6,4,0,FotMob result list; shot stats not exposed in accessible snippet
+14/10/2025,Paraguay,Y,40,W,8,3,2,10,1,0,FotMob result list; shot stats not exposed in accessible snippet
+10/10/2025,Brazil,Y,6,L,4,1,0,14,7,5,"FootyStats: South Korea vs Brazil, 10 Oct 2025"
+10/06/2025,Kuwait,N,134,W,25,7,4,6,0,0,"FotMob / FootyStats: South Korea vs Kuwait, 10 Jun 2025"
+05/06/2025,Iraq,N,57,W,13,7,2,5,2,0,"FotMob: Iraq vs South Korea, 5 Jun 2025"
+25/03/2025,Jordan,N,63,D,12,3,1,11,2,1,"FootyStats: South Korea vs Jordan, 25 Mar 2025"
+20/03/2025,Oman,N,79,D,11,3,1,5,2,1,"FootyStats: South Korea vs Oman, 20 Mar 2025"
+19/11/2024,Palestine,N,95,D,16,6,1,6,2,1,"FotMob: Palestine vs South Korea, 19 Nov 2024"

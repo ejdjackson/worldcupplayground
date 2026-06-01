@@ -1,0 +1,14 @@
+Date,Opponent,Friendly? (Y or N),Rank,"Result (W, L or D)",Shots,On Target,Goals,Opp. Shots,Opp. On Target,Opp. Goals,Source of Data
+29/03/2026,France,Y,1,L,13,5,1,14,5,3,"Flashscore match stats (Colombia v France, 29/03/2026): search result showed total shots 13-14, shots on target 5-5; ESPN confirms score/date"
+26/03/2026,Croatia,Y,11,L,13,5,1,10,3,2,
+19/11/2025,Australia,Y,27,W,16,8,3,2,1,0,https://www.flashscore.com.au/match/football/australia-xSrf6qMM/colombia-G02s4PCS/summary/stats/overall/
+16/11/2025,New Zealand,Y,85,W,22,8,2,10,3,1,Flashscore/ESPN/Sky Sports confirm score/date; detailed shots not visible in accessible source
+15/10/2025,Canada,Y,30,D,6,1,0,4,1,0,ESPN confirms Colombia 0-0 Canada on 15 Oct 2025; detailed shots not visible in accessible source
+12/10/2025,Mexico,Y,15,W,7,4,4,10,2,0,Flashscore match stats snippet confirms shots on target 4-1; score/date from Flashscore
+09/09/2025,Venezuela,N,49,W,13,9,6,11,8,3,Flashscore confirms Venezuela 3-6 Colombia and snippet shows Venezuela total shots 13; Colombia detailed shots not visible in accessible source
+04/09/2025,Bolivia,N,76,W,12,8,3,9,3,0,"Flashscore match stats snippet: Colombia v Bolivia xG 1.45-0.43, shots 12-9, shots on target 8-3"
+10/06/2025,Argentina,N,3,D,11,5,1,10,3,1,Flashscore/Reuters/ESPN confirm Argentina 1-1 Colombia; detailed shots not visible in accessible source
+06/06/2025,Peru,N,53,D,15,0,0,4,1,0,ESPN/Reuters confirm Colombia 0-0 Peru; detailed shots not visible in accessible source
+20/03/2025,Brazil,N,6,L,8,2,1,11,6,2,ESPN/Reuters confirm Brazil 2-1 Colombia; detailed shots not visible in accessible source
+14/07/2024,Argentina,N,3,L,19,4,0,11,6,1,FBref Copa América shooting match logs: Colombia 19 shots/4 SoT; Argentina 11 shots/6 SoT
+10/07/2024,Uruguay,N,17,W,11,4,1,11,2,0,FBref Copa América shooting match logs: Colombia 11 shots/4 SoT; Uruguay 11 shots/2 SoT

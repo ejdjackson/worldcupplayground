@@ -41,6 +41,12 @@ function buildLeaderboard(finals) {
     .sort((a, b) => b.wins - a.wins || a.country.localeCompare(b.country));
 }
 
+function FlagImg({ name, width }) {
+  const url = window.TEAMS_DATA?.flagUrl(name, width || 20);
+  if (!url) return null;
+  return <img src={url} alt={name} className="team-flag" onError={e => { e.target.style.display = 'none'; }} />;
+}
+
 function ScoreCell({ final }) {
   const parts = [];
   if (final.pens) {
@@ -70,7 +76,7 @@ function HistoryView() {
           {leaderboard.map((row, i) => (
             <div key={row.country} className="hv-lb-row">
               <span className="hv-lb-rank">{i + 1}</span>
-              <span className="hv-lb-country">{row.country}</span>
+              <FlagImg name={row.country} /><span className="hv-lb-country">{row.country}</span>
               <span className="hv-lb-wins">{row.wins}</span>
               <span className="hv-lb-years">{row.years.join(', ')}</span>
             </div>
@@ -97,9 +103,9 @@ function HistoryView() {
                 <tr key={f.year} className={f.note ? 'hv-notable' : ''}>
                   <td className="hv-year">{f.year}</td>
                   <td className="hv-host">{f.host}</td>
-                  <td className="hv-winner">{f.winner}</td>
+                  <td className="hv-winner"><FlagImg name={f.winner} /> {f.winner}</td>
                   <ScoreCell final={f} />
-                  <td className="hv-runner">{f.runner_up}</td>
+                  <td className="hv-runner"><FlagImg name={f.runner_up} /> {f.runner_up}</td>
                 </tr>
               ))}
             </tbody>

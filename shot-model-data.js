@@ -83,11 +83,28 @@ function validateShotModelRow(team, row) {
   return row;
 }
 
+// Maps app display names → keys used in SHOT_MODEL_MATCHES (where they differ from both the
+// display name and the SHOT_MODEL_ALIASES RAW-data key).
+const MATCHES_KEY_MAP = {
+  'South Korea':    'South Korea',        // alias points to 'Korea Republic'; override to direct key
+  'Bosnia & Herz.': 'Bosnia & Herzegovina',
+  'Curaçao':        'Curacao',
+  'Congo DR':       'DR Congo',
+};
+
+function resolveMatchesData(team) {
+  if (!window.SHOT_MODEL_MATCHES) return null;
+  return (
+    window.SHOT_MODEL_MATCHES[MATCHES_KEY_MAP[team]] ||
+    window.SHOT_MODEL_MATCHES[team] ||
+    window.SHOT_MODEL_MATCHES[SHOT_MODEL_ALIASES[team]]
+  ) || null;
+}
+
 // Compute params from raw match data, filtered to opponents with rank <= maxOppRank.
 // Pass maxOppRank=0 or null to include all opponents.
 function computeParamsFromMatches(team, maxOppRank) {
-  const key = SHOT_MODEL_ALIASES[team] || team;
-  const allMatches = window.SHOT_MODEL_MATCHES && window.SHOT_MODEL_MATCHES[key];
+  const allMatches = resolveMatchesData(team);
   if (!allMatches || allMatches.length === 0) return null;
   const filtered = (maxOppRank && maxOppRank > 0)
     ? allMatches.filter(m => m.opp_rank != null && m.opp_rank <= maxOppRank)
@@ -115,8 +132,7 @@ function computeParamsFromMatches(team, maxOppRank) {
 }
 
 function matchCountFor(team, maxOppRank) {
-  const key = SHOT_MODEL_ALIASES[team] || team;
-  const allMatches = window.SHOT_MODEL_MATCHES && window.SHOT_MODEL_MATCHES[key];
+  const allMatches = resolveMatchesData(team);
   if (!allMatches) return 0;
   if (!maxOppRank || maxOppRank <= 0) return allMatches.length;
   return allMatches.filter(m => m.opp_rank != null && m.opp_rank <= maxOppRank).length;

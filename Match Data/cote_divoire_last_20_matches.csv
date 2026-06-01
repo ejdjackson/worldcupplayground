@@ -1,0 +1,12 @@
+Date,Opponent,Friendly? (Y or N),Rank,"Result (W, L or D)",Shots,On Target,Goals,Opp. Shots,Opp. On Target,Opp. Goals,Source of Data
+31/03/2026,Scotland,Y,43,W,12,3,1,14,4,0,ESPN results; 365Scores/Flashscore/Sky Sports stats
+28/03/2026,South Korea,Y,25,W,13,8,4,12,2,0,ESPN results; Flashscore stats snippet
+10/01/2026,Egypt,N,29,L,13,4,2,6,4,3,ESPN results; 365Scores stats
+06/01/2026,Burkina Faso,N,62,W,18,4,3,6,2,0,ESPN results; match stats not confirmed
+31/12/2025,Gabon,N,87,W,21,5,3,9,3,2,ESPN results; Flashscore stats snippet
+28/12/2025,Cameroon,N,45,D,13,2,1,12,2,1,ESPN results; match stats not confirmed
+24/12/2025,Mozambique,N,101,W,15,5,1,5,2,0,ESPN results; match stats not confirmed
+14/10/2025,Kenya,N,111,W,14,8,3,1,0,0,ESPN results; Flashscore/365Scores stats
+09/09/2025,Gabon,N,87,D,21,,0,2,,0,ESPN results; Flashscore stats snippet
+05/09/2025,Burundi,N,142,W,18,7,1,3,0,0,ESPN results; Sportradar/365Scores stats
+24/03/2025,Gambia,N,116,W,5,3,1,8,3,0,ESPN results; 365Scores stats

@@ -782,7 +782,7 @@ function SimulationBuilder({ config, setConfig, resetConfig, onRun, onBack }) {
       GROUPS[group].teams.map(name => {
         const alias = window.SHOT_MODEL_DATA.aliases[name];
         const sourceName = alias || name;
-        const n = window.SHOT_MODEL_DATA.matchCountFor(sourceName, maxOppRank);
+        const n = window.SHOT_MODEL_DATA.matchCountFor(name, maxOppRank);
         const isFallback = n === 0;
         const params = window.SHOT_MODEL_DATA.paramsFor(name, maxOppRank);
         const source = isFallback
@@ -844,6 +844,38 @@ function SimulationBuilder({ config, setConfig, resetConfig, onRun, onBack }) {
             <b>Shots, shots on target, and goals are sampled from each team's attacking rates and the opponent's defensive rates.</b>
           </button>
         </div>
+
+        {config.model === 'shotModel' && (
+          <div className="model-grid shot-stage-grid">
+  <div className="shot-stage-box">
+    <span>Stage 1 — Shots</span>
+    <b>A Poisson draw determines how many shots each team takes, blending the team's own shot volume with how many the opponent typically concedes.</b>
+    <code>
+      λ = (1 − defenseWt) × team_shots
+      <br />
+      &nbsp;&nbsp;+ defenseWt × opp_shots_allowed
+    </code>
+  </div>
+  <div className="shot-stage-box">
+    <span>Stage 2 — Shots on target</span>
+    <b>Each shot independently has a probability of hitting the target, drawn from a Binomial distribution blending the shooter's accuracy with the defence's record.</b>
+    <code>
+      p = shotSkillWt × team_on_target
+      <br />
+      &nbsp;&nbsp;+ (1 − shotSkillWt) × opp_on_target
+    </code>
+  </div>
+  <div className="shot-stage-box">
+    <span>Stage 3 — Goals</span>
+    <b>Each shot on target independently has a probability of becoming a goal, drawn from a Binomial distribution blending the attacker's conversion rate with the goalkeeper's concession rate.</b>
+    <code>
+      p = (1 − keeperWt) × team_scored
+      <br />
+      &nbsp;&nbsp;+ keeperWt × opp_scored
+    </code>
+  </div>
+</div>
+        )}
 
         {config.model === 'shotModel' && (
           <section className="sim-panel">
@@ -1008,7 +1040,7 @@ function MonteCarloView({ simulationConfig, onBack }) {
     })
   ), []);
   const initialWins = useMemo(() => Object.fromEntries(teams.map(team => [team.name, 0])), [teams]);
-  const [simulationCount, setSimulationCount] = useState(1000);
+  const [simulationCount, setSimulationCount] = useState(10000);
   const [runsCompleted, setRunsCompleted] = useState(0);
   const [wins, setWins] = useState(initialWins);
   const [groupStageDraws, setGroupStageDraws] = useState(0);

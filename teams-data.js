@@ -232,6 +232,31 @@ GROUP_MATCHES.sort((a, b) => {
   return a.group.localeCompare(b.group);
 });
 
+// ISO 3166-1 alpha-2 codes for flagcdn.com. GB subdivisions use gb-eng / gb-sct.
+// Historical nations (West Germany, Czechoslovakia) map to modern successor flags.
+const FLAG_CODES = {
+  'Algeria': 'dz', 'Argentina': 'ar', 'Australia': 'au', 'Austria': 'at',
+  'Belgium': 'be', 'Bosnia & Herz.': 'ba', 'Brazil': 'br', 'Canada': 'ca',
+  'Cape Verde': 'cv', "Côte d'Ivoire": 'ci', 'Colombia': 'co', 'Congo DR': 'cd',
+  'Croatia': 'hr', 'Curaçao': 'cw', 'Czechia': 'cz', 'Ecuador': 'ec',
+  'Egypt': 'eg', 'England': 'gb-eng', 'France': 'fr', 'Germany': 'de',
+  'Ghana': 'gh', 'Haiti': 'ht', 'Iran': 'ir', 'Iraq': 'iq',
+  'Japan': 'jp', 'Jordan': 'jo', 'Mexico': 'mx', 'Morocco': 'ma',
+  'Netherlands': 'nl', 'New Zealand': 'nz', 'Norway': 'no', 'Panama': 'pa',
+  'Paraguay': 'py', 'Portugal': 'pt', 'Qatar': 'qa', 'Saudi Arabia': 'sa',
+  'Scotland': 'gb-sct', 'Senegal': 'sn', 'South Africa': 'za', 'South Korea': 'kr',
+  'Spain': 'es', 'Sweden': 'se', 'Switzerland': 'ch', 'Tunisia': 'tn',
+  'Türkiye': 'tr', 'Uruguay': 'uy', 'USA': 'us', 'Uzbekistan': 'uz',
+  // Historical finals nations
+  'Italy': 'it', 'Hungary': 'hu', 'Czechoslovakia': 'cz', 'West Germany': 'de',
+  'Russia': 'ru', 'Chile': 'cl', 'Sweden (1958)': 'se', 'Slovenia': 'si',
+};
+
+function flagUrl(name, width) {
+  const code = FLAG_CODES[name];
+  return code ? `https://flagcdn.com/w${width || 20}/${code}.png` : null;
+}
+
 window.TEAMS_DATA = {
   GROUPS,
   GROUP_LETTERS,
@@ -240,4 +265,6 @@ window.TEAMS_DATA = {
   FIFA_RANKINGS,
   FIFA_POINTS,
   FIFA_RANKING_DATE: '1 April 2026',
+  FLAG_CODES,
+  flagUrl,
 };

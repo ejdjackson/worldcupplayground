@@ -39,9 +39,10 @@ function TeamHistoryTooltipG({ teamName, pos }) {
 function TeamNameG({ name }) {
   const [pos, setPos] = useStateG(null);
   const hasHistory = !!getTeamHistoryG(name);
+  const url = window.TEAMS_DATA?.flagUrl(name);
   return (
     <span
-      className={hasHistory ? 'has-history' : ''}
+      className={`team-name-cell${hasHistory ? ' has-history' : ''}`}
       onMouseEnter={e => {
         if (!hasHistory) return;
         const r = e.currentTarget.getBoundingClientRect();
@@ -49,6 +50,7 @@ function TeamNameG({ name }) {
       }}
       onMouseLeave={() => setPos(null)}
     >
+      {url && <img src={url} alt={name} className="team-flag" onError={e => { e.target.style.display = 'none'; }} />}
       {name}
       {pos && <TeamHistoryTooltipG teamName={name} pos={pos} />}
     </span>

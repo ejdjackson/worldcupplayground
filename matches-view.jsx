@@ -38,14 +38,18 @@ function TeamHistoryTooltip({ teamName, side }) {
 function TeamName({ name, className, side }) {
   const [hovered, setHovered] = useStateM(false);
   const hasHistory = !!getTeamHistory(name);
+  const url = window.TEAMS_DATA?.flagUrl(name);
+  const flag = url ? <img src={url} alt={name} className="team-flag" onError={e => { e.target.style.display = 'none'; }} /> : null;
   return (
     <span
       className={`${className}${hasHistory ? ' has-history' : ''}`}
-      style={{ position: 'relative', display: 'inline-block' }}
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {side === 't2' && flag}
       {name}
+      {side === 't1' && flag}
       {hovered && hasHistory && <TeamHistoryTooltip teamName={name} side={side} />}
     </span>
   );
@@ -223,6 +227,17 @@ function MatchRow({ m, pred, setPred, resolution, tzMode, myTz }) {
   const month = typeof m.date === 'string' && m.date.includes('Jul') ? 7 : 6;
   const temp = window.VENUE_TEMPS?.venueExpectedTemp(m.venue, month, m.time);
 
+  const handleSimulate = () => {
+    if (!teamsKnown) return;
+    const result = window.PREDICTIONS.simulateMatch(team1Name, team2Name, isKO);
+    setPred(m.id, {
+      s1: result.s1,
+      s2: result.s2,
+      p1: result.p1 ?? null,
+      p2: result.p2 ?? null,
+    });
+  };
+
   const koPlaceholderName = (side) => {
     // Show parent slot description for an unresolved KO match
     if (!m.isKO) return '';
@@ -246,6 +261,12 @@ function MatchRow({ m, pred, setPred, resolution, tzMode, myTz }) {
         <span className="mr-time">{kickoff.time}</span>
         <span className="mr-venue">{m.venue}</span>
         {temp && <span className="mr-temp">{temp.c}°C / {temp.f}°F</span>}
+        <button
+          className="mr-sim-btn"
+          onClick={handleSimulate}
+          disabled={!teamsKnown}
+          title="Simulate this match"
+        >Sim</button>
       </div>
       <div className="mr-fixture">
         {team1Name

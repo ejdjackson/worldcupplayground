@@ -1,0 +1,8 @@
+Date,Opponent,Friendly? (Y or N),Current FIFA Rank of Opponent,"Result (W, L or D)",Shots,On Target,Goals,Opp. Shots,Opp. On Target,Opp. Goals,Source of Data
+30/03/2026,Chile,Y,57,W,12,7,4,5,4,1,BBC/ESPN/Playmaker match stats; Goal/11v11 result list
+27/03/2026,Finland,Y,66,L,11,2,0,10,3,2,BBC/ESPN match stats; Goal/11v11 result list
+18/11/2025,Ecuador,Y,23,L,10,2,0,24,8,2,FotMob/FootyStats/Playmaker match stats; 11v11 result list
+15/11/2025,Colombia,Y,13,L,10,3,1,22,8,2,BBC/Playmaker match stats; 11v11 result list
+14/10/2025,Norway,Y,31,D,9,5,1,23,6,1,BBC/FotMob/365Scores match stats; 11v11 result list
+09/10/2025,Poland,Y,36,L,11,2,0,15,3,1,Flashscore/ESPN/365Scores result; shot totals not fully verified
+09/09/2025,Australia,Y,27,L,8,4,1,13,3,3,FotMob/BBC match stats; Reuters result

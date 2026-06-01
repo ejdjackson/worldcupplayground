@@ -1,0 +1,11 @@
+Date,Opponent,Friendly? (Y or N),Rank,"Result (W, L or D)",Shots,On Target,Goals,Opp. Shots,Opp. On Target,Opp. Goals,Source of Data
+31/03/2026,Spain,Y,2,D,4,1,0,25,6,0,"ESPN match stats (Spain 0-0 Egypt, 31 Mar 2026)"
+27/03/2026,Saudi Arabia,Y,61,W,7,8,4,7,0,0,"ESPN/Sky Sports match stats (Saudi Arabia 0-4 Egypt, 27 Mar 2026)"
+17/01/2026,Nigeria,N,26,D,5,1,0,4,4,0,"ESPN match stats (Egypt 0-0 Nigeria, Nigeria won 4-2 pens, 17 Jan 2026)"
+14/01/2026,Senegal,N,14,L,3,1,0,12,4,1,ESPN/Reuters match report; complete shot totals not found in accessible source
+10/01/2026,Ivory Coast,N,34,W,6,4,3,13,4,2,ESPN match stats snippet / Reuters match report (shot attempts not found in accessible source)
+05/01/2026,Benin,N,90,W,12,7,3,8,3,1,WorldFootball.net team statistics / Guardian-Reuters reports (on-target not found in accessible source)
+29/12/2025,Angola,N,89,D,5,2,0,16,4,0,ESPN match stats snippet / Guardian report (on-target not found in accessible source)
+26/12/2025,South Africa,N,60,W,6,3,1,18,6,0,"ESPN match stats (Egypt 1-0 South Africa, 26 Dec 2025)"
+22/12/2025,Zimbabwe,N,130,W,35,11,2,8,3,1,"ESPN match stats (Egypt 2-1 Zimbabwe, 22 Dec 2025)"
+16/12/2025,Nigeria,Y,26,W,5,3,2,3,1,1,National-Football-Teams / ESPN result; shot stats not found in accessible source

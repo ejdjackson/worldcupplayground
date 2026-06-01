@@ -1,0 +1,12 @@
+Date,Opponent,Friendly? (Y or N),Current FIFA Rank of Opponent,"Result (W, L or D)",Shots,On Target,Goals,Opp. Shots,Opp. On Target,Opp. Goals,Source of Data
+31/03/2026,Costa Rica,Y,51,W,9,7,5,5,2,0,Flashscore stats; Goal.com/ESPN result; FIFA/Football-Ranking rank
+18/11/2025,Uzbekistan,Y,50,D,10,2,0,6,1,0,BBC/FotMob stats; BBC/365Scores result; FIFA/Football-Ranking rank
+10/10/2025,Russia,Y,36,L,8,2,1,14,5,2,BBC/365Scores stats; ESPN result; FIFA/Football-Ranking rank
+01/09/2025,India,N,136,W,21,7,3,5,0,0,FootyStats stats; Olympics/365Scores result; FIFA/Football-Ranking rank
+29/08/2025,Afghanistan,N,169,W,20,7,3,4,1,1,FootyStats stats; 365Scores/Transfermarkt result; FIFA/Football-Ranking rank
+10/06/2025,North Korea,N,118,W,25,8,3,8,1,0,365Scores/FotMob stats; Goal.com result; FIFA/Football-Ranking rank
+05/06/2025,Qatar,N,55,L,6,3,0,6,3,1,365Scores/FootyStats stats; Goal.com result; FIFA/Football-Ranking rank
+25/03/2025,Uzbekistan,N,50,D,20,8,2,13,4,2,365Scores/OneFootball stats; Goal.com/AFC result; FIFA/Football-Ranking rank
+20/03/2025,United Arab Emirates,N,68,W,15,8,2,6,1,0,365Scores/FootyStats stats; Goal.com result; FIFA/Football-Ranking rank
+19/11/2024,Kyrgyzstan,N,107,W,14,5,3,8,3,2,365Scores stats; ESPN result; FIFA/Football-Ranking rank
+05/09/2024,Kyrgyzstan,N,107,W,6,5,1,3,,0,"Flashsoccer/ESPN result; source showed total shots and Iran SOT, opponent SOT not clearly extractable; FIFA/Football-Ranking rank"

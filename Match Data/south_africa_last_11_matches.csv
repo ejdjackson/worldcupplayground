@@ -1,0 +1,12 @@
+Date,Opponent,Friendly? (Y or N),Current FIFA Rank of Opponent,"Result (W, L or D)",Shots,On Target,Goals,Opp. Shots,Opp. On Target,Opp. Goals,Source of Data
+31/03/2026,Panama,Y,33,L,6,1,1,8,4,2,BBC/ESPN/FotMob match stats; ESPN results; FotMob FIFA rankings
+27/03/2026,Panama,Y,33,D,12,5,1,3,2,1,ESPN/BBC match stats; ESPN results; FotMob FIFA rankings
+04/01/2026,Cameroon,N,45,L,18,4,1,10,4,2,ESPN match stats/results; FotMob FIFA rankings
+29/12/2025,Zimbabwe,N,130,W,16,9,3,10,3,2,ESPN match stats/results; FotMob FIFA rankings
+26/12/2025,Egypt,N,29,L,18,6,0,6,3,1,365Scores match stats; ESPN results; FotMob FIFA rankings
+22/12/2025,Angola,N,89,W,10,4,2,,4,1,ESPN match stats/results; FotMob FIFA rankings
+15/11/2025,Zambia,Y,92,W,14,6,3,5,1,1,365Scores/BBC match stats; ESPN results; FotMob FIFA rankings
+18/08/2025,Uganda,N,88,D,11,5,3,12,4,3,365Scores match stats; ESPN results; FotMob FIFA rankings
+15/08/2025,Niger,N,114,D,9,5,0,11,2,0,365Scores match stats; ESPN results; FotMob FIFA rankings
+11/08/2025,Guinea,N,80,W,6,2,2,21,2,1,365Scores match stats; ESPN results; FotMob FIFA rankings
+08/08/2025,Algeria,N,28,D,7,2,1,14,4,1,365Scores match stats; ESPN results; FotMob FIFA rankings
